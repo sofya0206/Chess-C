@@ -6,6 +6,9 @@ import { Chess, Square, Move } from "chess.js"
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
 
+// Единая ссылка на облачное хранилище оригинальных фигур SKAK
+const SKAK_PIECES_URL = "https://raw.githubusercontent.com/MuTsunTsai/skak-svg/main/svg/{color}{piece}.svg"
+
 const UNIFIED_THEMES = {
   arcticCobalt: {
     name: "The Arctic Cobalt Theme",
@@ -20,7 +23,7 @@ const UNIFIED_THEMES = {
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(60,69,75,0.2)", text: "#1a1916" },
     pieceFilter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
-    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg", 
+    pieceSetUrl: SKAK_PIECES_URL, 
   },
   amberOak: {
     name: "The Amber Oak Theme",
@@ -35,11 +38,11 @@ const UNIFIED_THEMES = {
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(97,67,50,0.2)", text: "#3d2b1f" },
     pieceFilter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
-    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg", 
+    pieceSetUrl: SKAK_PIECES_URL, 
   },
   neonDusk: {
     name: "The Neon Dusk Theme",
-    boardImageUrl: "", // Неон остается чистым
+    boardImageUrl: "", 
     boardColors: {
       light: "#2C3341",
       dark: "#1D222B",
@@ -49,8 +52,8 @@ const UNIFIED_THEMES = {
       selected: "rgba(0,240,255,0.3)", 
     },
     coachUI: { bg: "#1D222B", border: "rgba(255,255,255,0.1)", text: "#e5e5e5" },
-    pieceFilter: "invert(1) brightness(1.5) drop-shadow(0 0 4px #00F0FF)", 
-    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg", 
+    pieceFilter: "invert(1) hue-rotate(180deg) brightness(2) drop-shadow(0 0 6px #00F0FF)", 
+    pieceSetUrl: SKAK_PIECES_URL, 
   },
   softSmoke: {
     name: "The Soft Smoke Theme",
@@ -64,8 +67,8 @@ const UNIFIED_THEMES = {
       selected: "rgba(237,121,121,0.6)", 
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(142,156,165,0.2)", text: "#4a555e" },
-    pieceFilter: "opacity(0.95) drop-shadow(0 2px 4px rgba(0,0,0,0.12))",
-    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg", 
+    pieceFilter: "opacity(0.85) drop-shadow(0 2px 4px rgba(0,0,0,0.12))",
+    pieceSetUrl: SKAK_PIECES_URL, 
   },
 } as const
 
@@ -137,7 +140,7 @@ export default function ChessPage() {
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   
-  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v8", "amberOak")
+  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v9", "amberOak")
   
   const coachRef = useRef<HTMLDivElement>(null)
   const usedPhrasesRef = useRef<Set<string>>(new Set())
@@ -192,7 +195,6 @@ export default function ChessPage() {
     setSelectedSquare(null); setLegalMoves([])
   }, [game, selectedSquare, legalMoves, isGameActive, isPaused, lastCoachComment, addCoach])
 
-  // ИСПРАВЛЕНИЕ ЗДЕСЬ:
   const getSquareBg = (file: string, rank: string, sq: Square) => {
     const isLightSq = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
     
@@ -200,7 +202,7 @@ export default function ChessPage() {
     if (lastMove && (lastMove.from === sq || lastMove.to === sq)) return isLightSq ? theme.boardColors.lastLight : theme.boardColors.lastDark
     
     if (theme.boardImageUrl) {
-      // D9 = 85% непрозрачности. Цвета перекрывают градиент картинки, но текстура мягко видна.
+      // D9 = 85% непрозрачности. Цвета перекрывают градиент картинки, но текстура мягко просвечивает.
       return isLightSq ? `${theme.boardColors.light}D9` : `${theme.boardColors.dark}D9`
     }
     
