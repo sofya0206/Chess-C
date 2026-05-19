@@ -25,7 +25,7 @@ const UNIFIED_THEMES = {
   },
   amberOak: {
     name: "The Amber Oak Theme",
-    boardImageUrl: "/wood.png", // Твоя скачанная текстура дерева
+    boardImageUrl: "", // Твоя скачанная текстура дерева
     boardColors: {
       light: "#EBDDCB",
       dark: "#614332",
@@ -55,7 +55,7 @@ const UNIFIED_THEMES = {
   },
   softSmoke: {
     name: "The Soft Smoke Theme",
-    boardImageUrl: "/marble.png", // Твоя скачанная текстура мрамора
+    boardImageUrl: "", // Твоя скачанная текстура мрамора
     boardColors: {
       light: "#F2C9C9",
       dark: "#8E9CA5",
