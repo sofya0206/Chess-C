@@ -494,6 +494,48 @@ export default function ChessPage() {
                   </div>
                 ))}
               </div>
+              <div
+  style={{
+    padding: "1.5rem",
+    borderTop: `1px solid ${panelBorder}`,
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem"
+  }}
+>
+  <button
+    className="menu-btn"
+    onClick={() => {
+      setIsPaused(false)
+      setSettingsOpen(false)
+    }}
+  >
+    Resume Game
+  </button>
+
+  <button
+    className="menu-btn"
+    onClick={() => {
+      resetGame()
+      setIsPaused(false)
+      setSettingsOpen(false)
+    }}
+  >
+    Restart Game
+  </button>
+
+  <button
+    className="menu-btn"
+    onClick={() => {
+      resetGame()
+      setIsPaused(false)
+      setSettingsOpen(false)
+      setScreen("menu")
+    }}
+  >
+    ← Back to Menu
+  </button>
+</div>
             </div>
           </div>
         )}
@@ -577,15 +619,47 @@ export default function ChessPage() {
 
             <div style={{ width: 320, flexShrink: 0, display: "flex", flexDirection: "column", gap: "1.5rem", marginTop: "1.5rem" }}>
               
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: panelBg, padding: "0.75rem 1rem", border: `1px solid ${panelBorder}`, borderRadius: "6px" }}>
-                 <button onClick={() => setSettingsOpen(true)} className="chess-mono" style={{ fontSize: "0.75rem", letterSpacing: "0.12em", textTransform: "uppercase", background: "none", border: `1px solid ${text}40`, color: text, padding: "0.4rem 0.8rem", borderRadius: "4px", cursor: "pointer", transition: "all 0.2s" }}>Select Theme</button>
-                 <div style={{ display: "flex", gap: "6px" }}>
-                    <span className="swatch-circle" style={{ background: theme.boardColors.pageBg }} />
-                    <span className="swatch-circle" style={{ background: theme.boardColors.dark }} />
-                    <span className="swatch-circle" style={{ background: theme.boardColors.light }} />
-                    <span className="swatch-circle" style={{ background: theme.boardColors.selected }} />
-                 </div>
-              </div>
+              <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    background: panelBg,
+    padding: "0.75rem 1rem",
+    border: `1px solid ${panelBorder}`,
+    borderRadius: "6px",
+    gap: "0.5rem"
+  }}
+>
+  <button
+    onClick={() => {
+      setIsPaused(true)
+      setSettingsOpen(true)
+    }}
+    className="chess-mono"
+    style={{
+      fontSize: "0.75rem",
+      letterSpacing: "0.12em",
+      textTransform: "uppercase",
+      background: "none",
+      border: `1px solid ${text}40`,
+      color: text,
+      padding: "0.4rem 0.8rem",
+      borderRadius: "4px",
+      cursor: "pointer",
+      transition: "all 0.2s"
+    }}
+  >
+    Pause
+  </button>
+
+  <div style={{ display: "flex", gap: "6px" }}>
+    <span className="swatch-circle" style={{ background: theme.boardColors.pageBg }} />
+    <span className="swatch-circle" style={{ background: theme.boardColors.dark }} />
+    <span className="swatch-circle" style={{ background: theme.boardColors.light }} />
+    <span className="swatch-circle" style={{ background: theme.boardColors.selected }} />
+  </div>
+</div>
 
               <div style={{ background: panelBg, border: `1px solid ${panelBorder}`, borderRadius: "6px", padding: "1.2rem" }}>
                 <p className="chess-mono" style={{ fontSize: "0.68rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}80`, marginBottom: "0.4rem", margin: 0 }}>Status</p>
