@@ -290,6 +290,7 @@ function generateComment(move: Move, game: Chess, lastComment: string, usedRef: 
 }
 
 type GameResult = { winner: "White" | "Black" | "Draw"; reason: string }
+type Screen = "menu" | "game"
 
 function useLocalStorage<T>(key: string, defaultValue: T): [T, (v: T) => void] {
   const [value, setValue] = useState<T>(defaultValue)
@@ -314,7 +315,7 @@ export default function ChessPage() {
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [gameResult, setGameResult] = useState<GameResult | null>(null)
-
+  const [screen, setScreen] = useState<Screen>("menu")
   const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v11", "amberOak")
 
   const coachRef = useRef<HTMLDivElement>(null)
@@ -421,7 +422,84 @@ export default function ChessPage() {
   const text = isDark ? "#e5e5e5" : theme.coachUI.text
   const panelBg = theme.coachUI.bg
   const panelBorder = theme.coachUI.border
+  if (screen === "menu") {
+    return (
+      <>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&family=DM+Serif+Display:ital@0;1&display=swap');
+          * { box-sizing: border-box; }
+          .chess-mono { font-family: 'DM Mono', monospace; }
+          .chess-serif-display { font-family: 'DM Serif Display', serif; }
+          .menu-btn { display: block; width: 100%; max-width: 280px; font-family: 'DM Mono', monospace; font-size: 0.78rem; letter-spacing: 0.15em; text-transform: uppercase; background: none; border: 1px solid ${text}30; color: ${text}; padding: 0.9rem 2rem; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+          .menu-btn:hover { border-color: ${text}70; background: ${text}08; }
+          .menu-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+          .menu-btn.accent { border-color: ${text}60; }
+          .auth-btn { font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; background: none; border: 1px solid ${text}20; color: ${text}55; padding: 0.45rem 0.9rem; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+          .auth-btn:hover { border-color: ${text}40; color: ${text}90; }
+          .swatch-circle { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); display: inline-block; }
+          .settings-overlay { position: fixed; inset: 0; z-index: 100; background: ${isDark ? "rgba(0,0,0,0.7)" : "rgba(26,25,22,0.3)"}; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
+          .settings-modal { background: ${theme.boardColors.pageBg}; border: 1px solid ${panelBorder}; width: 400px; max-width: 92vw; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border-radius: 8px; overflow: hidden; }
+          .style-opt { padding: 1rem; cursor: pointer; border-bottom: 1px solid ${panelBorder}; transition: background 0.2s; }
+          .style-opt:last-child { border-bottom: none; }
+          .style-opt:hover { background: rgba(0,0,0,0.03); }
+          .style-opt.selected { background: ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}; }
+        `}</style>
 
+        <div style={{ minHeight: "100vh", backgroundColor: theme.boardColors.pageBg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", color: text, transition: "background-color 0.4s ease" }}>
+
+          <p className="chess-mono" style={{ fontSize: "0.6rem", letterSpacing: "0.35em", textTransform: "uppercase", color: `${text}45`, margin: "0 0 0.6rem 0" }}>welcome to</p>
+          <h1 className="chess-serif-display" style={{ fontSize: "clamp(3rem, 10vw, 5rem)", fontStyle: "italic", margin: 0, lineHeight: 1, color: text }}>The Board</h1>
+          <p style={{ fontFamily: "'EB Garamond', serif", fontSize: "1.05rem", fontStyle: "italic", color: `${text}50`, margin: "0.6rem 0 3.5rem 0" }}>choose your game</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem", alignItems: "center", width: "100%" }}>
+            <button className="menu-btn accent" onClick={() => setScreen("game")}>Play with Friend</button>
+            <button className="menu-btn" disabled>Play with Bot <span style={{ fontSize: "0.55rem", opacity: 0.6 }}>(coming soon)</span></button>
+            <button className="menu-btn" onClick={() => setSettingsOpen(true)}>Settings</button>
+          </div>
+
+          <div style={{ marginTop: "2.5rem", display: "flex", gap: "8px", alignItems: "center" }}>
+            {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map(k => (
+              <span key={k} title={UNIFIED_THEMES[k].name} onClick={() => setCurrentThemeKey(k)} style={{ width: 14, height: 14, borderRadius: "50%", background: UNIFIED_THEMES[k].boardColors.dark, border: `2px solid ${currentThemeKey === k ? text : "transparent"}`, cursor: "pointer", transition: "all 0.2s", display: "inline-block" }} />
+            ))}
+          </div>
+
+          <div style={{ marginTop: "3rem", display: "flex", gap: "0.6rem", flexWrap: "wrap", justifyContent: "center" }}>
+            <button className="auth-btn">Sign in with GitHub</button>
+            <button className="auth-btn">Sign in with Google</button>
+          </div>
+          <p className="chess-mono" style={{ fontSize: "0.55rem", letterSpacing: "0.1em", color: `${text}25`, marginTop: "1rem" }}>auth coming soon</p>
+        </div>
+
+        {settingsOpen && (
+          <div className="settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false) }}>
+            <div className="settings-modal" style={{ color: text }}>
+              <div style={{ padding: "1.2rem 1.5rem", borderBottom: `1px solid ${panelBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span className="chess-mono" style={{ fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase" }}>Theme Gallery</span>
+                <button onClick={() => setSettingsOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: text }}>✕</button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map((key) => (
+                  <div key={key} className={`style-opt${currentThemeKey === key ? " selected" : ""}`} onClick={() => setCurrentThemeKey(key)}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span className="chess-mono" style={{ fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: currentThemeKey === key ? text : "transparent", border: `1px solid ${text}` }} />
+                        {UNIFIED_THEMES[key].name}
+                      </span>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <span className="swatch-circle" style={{ background: UNIFIED_THEMES[key].boardColors.pageBg }} />
+                        <span className="swatch-circle" style={{ background: UNIFIED_THEMES[key].boardColors.dark }} />
+                        <span className="swatch-circle" style={{ background: UNIFIED_THEMES[key].boardColors.light }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
   return (
     <>
       <style>{`
@@ -588,7 +666,10 @@ export default function ChessPage() {
                 </p>
               )}
               <div style={{ width: 40, height: 1, background: `${text}25`, margin: "1.8rem auto 0" }} />
-              <button className="result-btn" onClick={resetGame}>New Game</button>
+                           <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", alignItems: "center" }}>
+                <button className="result-btn" onClick={resetGame}>Play Again</button>
+                <button className="result-btn" style={{ fontSize: "0.65rem", opacity: 0.7 }} onClick={() => { resetGame(); setScreen("menu") }}>← Back to Menu</button>
+              </div>
             </div>
           </div>
         )}
