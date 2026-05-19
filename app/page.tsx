@@ -204,14 +204,21 @@ export default function ChessPage() {
   useEffect(() => { if (screen === "profile") loadProfile() }, [screen, loadProfile])
 
   // ── Auth actions ──
-  const signInGitHub = () => supabase.auth.signInWithOAuth({
-    provider: "github",
-    options: { redirectTo: window.location.origin }
-  })
-  const signInGoogle = () => supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: window.location.origin }
-  })
+  const signInGitHub = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "github",
+      options: { redirectTo: "https://chess-c-rho.vercel.app" }
+    })
+    if (error) console.error(error)
+  }
+  const signInGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: "https://chess-c-rho.vercel.app" }
+    })
+    if (error) console.error(error)
+  }
+
   const signOut = async () => { await supabase.auth.signOut(); setUser(null) }
 
   // ── Game helpers ──
