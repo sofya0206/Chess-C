@@ -33,7 +33,7 @@ const UNIFIED_THEMES = {
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(97,67,50,0.2)", text: "#3d2b1f" },
     pieceFilter: "drop-shadow(0 4px 6px rgba(0,0,0,0.15))",
-    pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
+    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg",
   },
   neonDusk: {
     name: "The Neon Dusk Theme",
