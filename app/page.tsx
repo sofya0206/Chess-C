@@ -6,7 +6,6 @@ import { Chess, Square, Move } from "chess.js"
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
 
-// Точные цвета из твоего дизайна
 const UNIFIED_THEMES = {
   arcticCobalt: {
     name: "The Arctic Cobalt Theme",
@@ -18,8 +17,8 @@ const UNIFIED_THEMES = {
       lastDark: "#2B343A",
       selected: "#173BF0", 
     },
-    coachUI: { bg: "transparent", border: "rgba(60,69,75,0.15)", text: "#1a1916" },
-    pieceFilter: "hue-rotate(180deg) brightness(1.2) drop-shadow(0 4px 4px rgba(23,59,240,0.2))", // Холодный стеклянный эффект
+    coachUI: { bg: "#FFFFFF", border: "rgba(60,69,75,0.2)", text: "#1a1916" },
+    pieceFilter: "hue-rotate(180deg) brightness(1.2) drop-shadow(0 4px 4px rgba(23,59,240,0.2))",
     pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
   },
   amberOak: {
@@ -32,8 +31,8 @@ const UNIFIED_THEMES = {
       lastDark: "#503221",
       selected: "#D6B039", 
     },
-    coachUI: { bg: "transparent", border: "rgba(97,67,50,0.15)", text: "#3d2b1f" },
-    pieceFilter: "drop-shadow(0 4px 6px rgba(0,0,0,0.15))", // Классическая тень
+    coachUI: { bg: "#FFFFFF", border: "rgba(97,67,50,0.2)", text: "#3d2b1f" },
+    pieceFilter: "drop-shadow(0 4px 6px rgba(0,0,0,0.15))",
     pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
   },
   neonDusk: {
@@ -46,8 +45,8 @@ const UNIFIED_THEMES = {
       lastDark: "#2E333C",
       selected: "#00F0FF", 
     },
-    coachUI: { bg: "#161920", border: "rgba(255,255,255,0.1)", text: "#e5e5e5" },
-    pieceFilter: "invert(1) hue-rotate(120deg) brightness(1.5) drop-shadow(0 0 6px #00F0FF)", // Неоновое свечение
+    coachUI: { bg: "#1D222B", border: "rgba(255,255,255,0.1)", text: "#e5e5e5" },
+    pieceFilter: "invert(1) hue-rotate(120deg) brightness(1.5) drop-shadow(0 0 6px #00F0FF)",
     pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
   },
   softSmoke: {
@@ -60,8 +59,8 @@ const UNIFIED_THEMES = {
       lastDark: "#7D8B94",
       selected: "#ED7979", 
     },
-    coachUI: { bg: "#E5E8EB", border: "rgba(142,156,165,0.2)", text: "#4a555e" },
-    pieceFilter: "opacity(0.85) drop-shadow(0 2px 4px rgba(0,0,0,0.1))", // Матовый, приглушенный эффект
+    coachUI: { bg: "#FFFFFF", border: "rgba(142,156,165,0.2)", text: "#4a555e" },
+    pieceFilter: "opacity(0.85) drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
     pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
   },
 } as const
@@ -85,7 +84,7 @@ const COACH_COMMENTS = {
 
 function generateHint(game: Chess): string {
   if (game.isCheckmate()) return "The game is over. Study this position — there is much to learn."
-  if (game.isDraw()) return "A drawn position. Neither side could find the decisive blow."
+  if (game.isDraw()) return "A drawn position."
   if (game.isCheck()) return `${game.turn() === "w" ? "White" : "Black"} is in check. The king demands immediate attention.`
   const moves = game.moves({ verbose: true })
   const captures = moves.filter((m) => m.san.includes("x"))
@@ -134,13 +133,13 @@ export default function ChessPage() {
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   
-  // Устанавливаем Amber Oak как базовую тему по умолчанию
-  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_unifiedTheme", "amberOak")
+  // Создаем чистый уникальный ключ для локальной памяти, чтобы сбросить старые серые пресеты
+  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v3", "amberOak")
   
   const coachRef = useRef<HTMLDivElement>(null)
   const usedPhrasesRef = useRef<Set<string>>(new Set())
 
-  const theme = UNIFIED_THEMES[currentThemeKey]
+  const theme = UNIFIED_THEMES[currentThemeKey] || UNIFIED_THEMES.amberOak
   const isDark = currentThemeKey === "neonDusk"
   
   useEffect(() => {
@@ -200,13 +199,14 @@ export default function ChessPage() {
   const isBlackActive = game.turn() === "b" && isGameActive && !isPaused
 
   const text = isDark ? "#e5e5e5" : theme.coachUI.text
+  const panelBg = theme.coachUI.bg
   const panelBorder = theme.coachUI.border
 
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&family=DM+Serif+Display:ital@0;1&display=swap');
-        .chess-root { font-family: 'EB Garamond', Georgia, serif; background: transparent; min-height: 100vh; color: ${text}; transition: color 0.4s ease; }
+        .chess-root { font-family: 'EB Garamond', Georgia, serif; min-height: 100vh; color: ${text}; transition: color 0.4s ease; padding: 20px; }
         .chess-root * { box-sizing: border-box; }
         .chess-mono { font-family: 'DM Mono', monospace; }
         .chess-serif-display { font-family: 'DM Serif Display', serif; }
@@ -216,23 +216,30 @@ export default function ChessPage() {
         .style-opt:last-child { border-bottom: none; }
         .style-opt:hover { background: rgba(0,0,0,0.03); }
         .style-opt.selected { background: ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}; }
-        .swatch-circle { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); display: inline-block; }
-        .sq-btn { position: relative; display: flex; align-items: center; justify-content: center; border: none; padding: 0; cursor: pointer; transition: filter 0.1s; aspect-ratio: 1; }
-        .sq-btn:hover { filter: brightness(0.95); }
-        .dot-ind { position: absolute; width: 28%; height: 28%; border-radius: 50%; background: ${isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)"}; pointer-events: none; z-index: 3; }
-        .ring-ind { position: absolute; inset: 3%; border: 4px solid ${isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)"}; pointer-events: none; z-index: 3; }
-        .coord { position: absolute; font-size: 10px; font-family: 'DM Mono', monospace; font-weight: 400; opacity: 0.6; z-index: 1; pointer-events: none; }
+        .swatch-circle { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); display: inline-block; }
+        .sq-btn { position: relative; display: flex; align-items: center; justify-content: center; border: none; padding: 0; cursor: pointer; aspect-ratio: 1; }
+        .dot-ind { position: absolute; width: 24%; height: 24%; border-radius: 50%; background: ${isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.25)"}; pointer-events: none; z-index: 3; }
+        .ring-ind { position: absolute; inset: 0; border: 4px solid ${theme.boardColors.selected}; pointer-events: none; z-index: 3; }
+        .coord { position: absolute; font-size: 10px; font-family: 'DM Mono', monospace; font-weight: 400; opacity: 0.5; z-index: 1; pointer-events: none; }
         .coach-scroll::-webkit-scrollbar { width: 4px; }
         .coach-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
       `}</style>
 
-      <div className="chess-root">
-        <div style={{ maxWidth: 980, margin: "0 auto", padding: "2.5rem 1.5rem 4rem" }}>
+      <div className="chess-root" style={{ backgroundColor: theme.boardColors.pageBg, transition: "background-color 0.4s ease" }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto", padding: "1.5rem 1rem" }}>
           
-          <div style={{ display: "flex", gap: "2.5rem", alignItems: "flex-start", flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 280 }}>
+          <div style={{ display: "flex", gap: "2.5rem", alignItems: "flex-start", flexWrap: "wrap", justifyContent: "center" }}>
+            
+            {/* ИГРОВОЕ ПОЛЕ */}
+            <div style={{ flex: "1 1 500px", maxWidth: "560px" }}>
               
-              <div style={{ width: "100%", aspectRatio: "1", display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(8,1fr)", borderRadius: "4px", overflow: "hidden", border: `1px solid ${panelBorder}`, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.15)" }}>
+              {/* Верхний таймер (Black) */}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0.2rem", fontSize: "0.9rem" }}>
+                <span className="chess-mono" style={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: isBlackActive ? 1 : 0.6, fontWeight: isBlackActive ? 600 : 400 }}>● Black</span>
+                <span className="chess-mono" style={{ fontSize: "1rem", fontWeight: isBlackActive ? 600 : 400 }}>{formatTime(blackTime)}</span>
+              </div>
+
+              <div style={{ width: "100%", aspectRatio: "1", display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(8,1fr)", border: `2px solid ${panelBorder}`, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.2)" }}>
                 {RANKS.map((rank) => FILES.map((file) => {
                   const sq = `${file}${rank}` as Square
                   const piece = game.get(sq)
@@ -241,22 +248,30 @@ export default function ChessPage() {
                   const pieceImgUrl = piece ? getPieceUrl(piece.color, piece.type, theme) : null
 
                   return (
-                    <button key={sq} className="sq-btn" onClick={() => handleSquareClick(sq)} style={{ background: getSquareBg(file, rank, sq) }}>
+                    <button key={sq} className="sq-btn" onClick={() => handleSquareClick(sq)} style={{ background: getSquareBg(file, rank, sq), transition: "background-color 0.2s ease" }}>
                       {pieceImgUrl && (
-                        <img src={pieceImgUrl} alt={`${piece?.color}${piece?.type}`} style={{ width: "85%", height: "85%", zIndex: 2, filter: theme.pieceFilter, transition: "filter 0.4s ease" }} />
+                        <img src={pieceImgUrl} alt={`${piece?.color}${piece?.type}`} style={{ width: "86%", height: "86%", zIndex: 2, filter: theme.pieceFilter, transition: "filter 0.4s ease" }} />
                       )}
                       {isLegal && (piece ? <span className="ring-ind" /> : <span className="dot-ind" />)}
-                      {file === "a" && <span className="coord" style={{ top: 3, left: 4, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{rank}</span>}
-                      {rank === "1" && <span className="coord" style={{ bottom: 3, right: 4, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{file}</span>}
+                      {file === "a" && <span className="coord" style={{ top: 4, left: 5, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{rank}</span>}
+                      {rank === "1" && <span className="coord" style={{ bottom: 4, right: 5, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{file}</span>}
                     </button>
                   )
                 }))}
               </div>
+
+              {/* Нижний таймер (White) */}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0.2rem", fontSize: "0.9rem" }}>
+                <span className="chess-mono" style={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: isWhiteActive ? 1 : 0.6, fontWeight: isWhiteActive ? 600 : 400 }}>○ White</span>
+                <span className="chess-mono" style={{ fontSize: "1rem", fontWeight: isWhiteActive ? 600 : 400 }}>{formatTime(whiteTime)}</span>
+              </div>
             </div>
 
-            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                 <button onClick={() => setSettingsOpen(true)} className="chess-mono" style={{ fontSize: "0.75rem", letterSpacing: "0.15em", textTransform: "uppercase", background: "none", border: `1px solid ${panelBorder}`, color: text, padding: "0.4rem 0.8rem", borderRadius: "4px", cursor: "pointer" }}>Select Theme</button>
+            {/* БОКОВАЯ ПАНЕЛЬ ИНТЕРФЕЙСА */}
+            <div style={{ width: 320, flexShrink: 0, display: "flex", flexDirection: "column", gap: "1.5rem", marginTop: "1.5rem" }}>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: panelBg, padding: "0.75rem 1rem", border: `1px solid ${panelBorder}`, borderRadius: "6px" }}>
+                 <button onClick={() => setSettingsOpen(true)} className="chess-mono" style={{ fontSize: "0.75rem", letterSpacing: "0.12em", textTransform: "uppercase", background: "none", border: `1px solid ${text}40`, color: text, padding: "0.4rem 0.8rem", borderRadius: "4px", cursor: "pointer", transition: "all 0.2s" }}>Select Theme</button>
                  <div style={{ display: "flex", gap: "6px" }}>
                     <span className="swatch-circle" style={{ background: theme.boardColors.pageBg }} />
                     <span className="swatch-circle" style={{ background: theme.boardColors.dark }} />
@@ -265,9 +280,9 @@ export default function ChessPage() {
                  </div>
               </div>
 
-              <div style={{ borderBottom: `1px solid ${panelBorder}`, paddingBottom: "1rem" }}>
-                <p className="chess-mono" style={{ fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}90`, marginBottom: "0.5rem" }}>Status</p>
-                <p className="chess-serif-display" style={{ fontSize: "1.1rem", fontStyle: "italic", color: text, margin: 0 }}>{
+              <div style={{ background: panelBg, border: `1px solid ${panelBorder}`, borderRadius: "6px", padding: "1.2rem" }}>
+                <p className="chess-mono" style={{ fontSize: "0.68rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}80`, marginBottom: "0.4rem", margin: 0 }}>Status</p>
+                <p className="chess-serif-display" style={{ fontSize: "1.2rem", fontStyle: "italic", color: text, margin: "0.3rem 0 0 0" }}>{
                   game.isCheckmate() ? `Checkmate — ${game.turn() === "w" ? "Black" : "White"} wins.` :
                   game.isDraw() ? "A drawn position." :
                   game.isCheck() ? `${game.turn() === "w" ? "White" : "Black"} in check.` :
@@ -275,30 +290,32 @@ export default function ChessPage() {
                 }</p>
               </div>
 
-              <div style={{ borderBottom: `1px solid ${panelBorder}`, paddingBottom: "1rem" }}>
-                <p className="chess-mono" style={{ fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}90`, marginBottom: "0.5rem" }}>Move History</p>
-                <p className="chess-serif-display" style={{ fontSize: "1rem", fontStyle: "italic", color: text, margin: 0 }}>
+              <div style={{ background: panelBg, border: `1px solid ${panelBorder}`, borderRadius: "6px", padding: "1.2rem" }}>
+                <p className="chess-mono" style={{ fontSize: "0.68rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}80`, marginBottom: "0.4rem", margin: 0 }}>Move History</p>
+                <p className="chess-serif-display" style={{ fontSize: "1.1rem", fontStyle: "italic", color: text, margin: "0.3rem 0 0 0" }}>
                   {moveHistory.length === 0 ? "No moves yet" : moveHistory[moveHistory.length - 1]}
                 </p>
               </div>
 
-              <div style={{ background: theme.coachUI.bg, border: `1px solid ${panelBorder}`, borderRadius: "4px", padding: "1.2rem", position: "relative" }}>
-                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem" }}>
-                    <p className="chess-mono" style={{ fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}90`, margin: 0 }}>AI Coach</p>
-                    <button onClick={handleHint} className="chess-mono" style={{ fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.6rem", border: `1px solid ${isDark ? "#00F0FF" : "#D6B039"}`, background: "transparent", color: isDark ? "#00F0FF" : "#D6B039", borderRadius: "4px", cursor: "pointer" }}>Get Hint</button>
+              <div style={{ background: panelBg, border: `1px solid ${panelBorder}`, borderRadius: "6px", padding: "1.2rem" }}>
+                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem", borderBottom: `1px solid ${panelBorder}`, paddingBottom: "0.5rem" }}>
+                    <p className="chess-mono" style={{ fontSize: "0.68rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}80`, margin: 0 }}>AI Coach</p>
+                    <button onClick={handleHint} className="chess-mono" style={{ fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.6rem", border: `1px solid ${text}`, background: "transparent", color: text, borderRadius: "4px", cursor: "pointer" }}>Get Hint</button>
                  </div>
-                 <div ref={coachRef} className="coach-scroll" style={{ maxHeight: 120, overflowY: "auto" }}>
+                 <div ref={coachRef} className="coach-scroll" style={{ maxHeight: 130, overflowY: "auto" }}>
                   {coachMessages.map((msg, i) => (
-                    <p key={i} className="chess-serif-display" style={{ fontSize: "0.95rem", fontStyle: "italic", lineHeight: 1.5, margin: "0 0 0.5rem 0", color: i === coachMessages.length - 1 ? text : `${text}80` }}>
+                    <p key={i} className="chess-serif-display" style={{ fontSize: "0.95rem", fontStyle: "italic", lineHeight: 1.5, margin: "0 0 0.5rem 0", color: i === coachMessages.length - 1 ? text : `${text}65` }}>
                       {msg}
                     </p>
                   ))}
                  </div>
               </div>
             </div>
+
           </div>
         </div>
 
+        {/* МЕНЮ ВЫБОРА ГАЛЕРЕИ ТЕМ */}
         {settingsOpen && (
           <div className="settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setIsPaused(false); setSettingsOpen(false) } }}>
             <div className="settings-modal" style={{ color: text }}>
