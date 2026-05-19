@@ -448,7 +448,7 @@ export default function ChessPage() {
         <div style={{ minHeight: "100vh", backgroundColor: theme.boardColors.pageBg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", color: text, transition: "background-color 0.4s ease" }}>
 
           <p className="chess-mono" style={{ fontSize: "0.6rem", letterSpacing: "0.35em", textTransform: "uppercase", color: `${text}45`, margin: "0 0 0.6rem 0" }}>welcome to</p>
-          <h1 className="chess-serif-display" style={{ fontSize: "clamp(3rem, 10vw, 5rem)", fontStyle: "italic", margin: 0, lineHeight: 1, color: text }}>Menu test 123</h1>
+          <h1 className="chess-serif-display" style={{ fontSize: "clamp(3rem, 10vw, 5rem)", fontStyle: "italic", margin: 0, lineHeight: 1, color: text }}>Chess</h1>
           <p style={{ fontFamily: "'EB Garamond', serif", fontSize: "1.05rem", fontStyle: "italic", color: `${text}50`, margin: "0.6rem 0 3.5rem 0" }}>choose your game</p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem", alignItems: "center", width: "100%" }}>
