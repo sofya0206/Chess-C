@@ -7,7 +7,13 @@ import { createClient } from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    flowType: "implicit",
+    detectSessionInUrl: true,
+    persistSession: true,
+  }
+})
 
 type UnifiedThemeKey = keyof typeof UNIFIED_THEMES
 type GameResult = { winner: "White" | "Black" | "Draw"; reason: string }
@@ -192,10 +198,10 @@ export default function ChessPage() {
   useEffect(() => { if (screen === "profile") loadProfile() }, [screen, loadProfile])
 
 const signInGitHub = () => {
-  window.location.href = "https://gcwqeofcdyfhxvtrymzo.supabase.co/auth/v1/authorize?provider=github&redirect_to=https://chess-c-rho.vercel.app/auth/callback"
+  window.location.href = "https://gcwqeofcdyfhxvtrymzo.supabase.co/auth/v1/authorize?provider=github&redirect_to=https://chess-c-rho.vercel.app"
 }
 const signInGoogle = () => {
-  window.location.href = "https://gcwqeofcdyfhxvtrymzo.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://chess-c-rho.vercel.app/auth/callback"
+  window.location.href = "https://gcwqeofcdyfhxvtrymzo.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://chess-c-rho.vercel.app"
 }
   const signOut = async () => { await supabase.auth.signOut(); setUser(null) }
 
