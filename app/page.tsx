@@ -19,7 +19,7 @@ const UNIFIED_THEMES = {
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(60,69,75,0.2)", text: "#1a1916" },
     pieceFilter: "hue-rotate(180deg) brightness(1.2) drop-shadow(0 4px 4px rgba(23,59,240,0.2))",
-    pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
+    pieceSetUrl: "/pieces/arctic/{color}{piece}.svg",
   },
   amberOak: {
     name: "The Amber Oak Theme",
