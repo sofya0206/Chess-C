@@ -111,12 +111,31 @@ export default function ChessPage() {
   const bg = theme.coachUI.bg
   const br = theme.coachUI.border
 
-  useEffect(() => {
+useEffect(() => {
     setMounted(true)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    
+    // Читаем токен из URL если есть (implicit flow)
+    const hash = window.location.hash
+    if (hash && hash.includes("access_token")) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUser(session?.user ?? null)
+        setAuthLoading(false)
+        // Убираем токен из URL
+        window.history.replaceState({}, document.title, window.location.pathname)
+      })
+    } else {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUser(session?.user ?? null)
+        setAuthLoading(false)
+      })
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null)
       setAuthLoading(false)
     })
+    return () => subscription.unsubscribe()
+  }, [])
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null)
     })
