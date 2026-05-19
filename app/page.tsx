@@ -191,18 +191,11 @@ export default function ChessPage() {
 
   useEffect(() => { if (screen === "profile") loadProfile() }, [screen, loadProfile])
 
-  const signInGitHub = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "github",
-      options: { redirectTo: "https://chess-c-rho.vercel.app" }
-    })
+  const signInGitHub = () => {
+    window.location.href = "https://gcwqeofcdyfhxvtrymzo.supabase.co/auth/v1/authorize?provider=github&redirect_to=https://chess-c-rho.vercel.app"
   }
-
-  const signInGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: "https://chess-c-rho.vercel.app" }
-    })
+  const signInGoogle = () => {
+    window.location.href = "https://gcwqeofcdyfhxvtrymzo.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://chess-c-rho.vercel.app"
   }
 
   const signOut = async () => { await supabase.auth.signOut(); setUser(null) }
