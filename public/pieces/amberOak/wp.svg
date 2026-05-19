@@ -1,5 +1,11 @@
 <svg viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="22.5" cy="16" r="6" fill="#EBDDCB"/>
-  <path d="M19 21 L26 21 L29 34 L16 34 Z" fill="#EBDDCB"/>
-  <rect x="13" y="34" width="19" height="4" rx="1" fill="#EBDDCB"/>
+  <defs>
+    <linearGradient id="gW" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F1E0D1" />
+    </linearGradient>
+  </defs>
+  <circle cx="22.5" cy="16" r="6" fill="url(#gW)"/>
+  <path d="M19 21 L26 21 L29 34 L16 34 Z" fill="url(#gW)"/>
+  <rect x="13" y="34" width="19" height="4" rx="1" fill="url(#gW)"/>
 </svg>
