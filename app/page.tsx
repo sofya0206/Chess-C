@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Chess, Square, Move } from "chess.js"
+import { Settings } from "lucide-react"
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
@@ -42,7 +43,7 @@ const UNIFIED_THEMES = {
   },
   neonDusk: {
     name: "The Neon Dusk Theme",
-    boardImageUrl: "", // Для неона картинка не нужна
+    boardImageUrl: "", 
     boardColors: {
       light: "#2C3341",
       dark: "#1D222B",
@@ -494,48 +495,6 @@ export default function ChessPage() {
                   </div>
                 ))}
               </div>
-              <div
-  style={{
-    padding: "1.5rem",
-    borderTop: `1px solid ${panelBorder}`,
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.75rem"
-  }}
->
-  <button
-    className="menu-btn"
-    onClick={() => {
-      setIsPaused(false)
-      setSettingsOpen(false)
-    }}
-  >
-    Resume Game
-  </button>
-
-  <button
-    className="menu-btn"
-    onClick={() => {
-      resetGame()
-      setIsPaused(false)
-      setSettingsOpen(false)
-    }}
-  >
-    Restart Game
-  </button>
-
-  <button
-    className="menu-btn"
-    onClick={() => {
-      resetGame()
-      setIsPaused(false)
-      setSettingsOpen(false)
-      setScreen("menu")
-    }}
-  >
-    ← Back to Menu
-  </button>
-</div>
             </div>
           </div>
         )}
@@ -550,6 +509,8 @@ export default function ChessPage() {
         .chess-root * { box-sizing: border-box; }
         .chess-mono { font-family: 'DM Mono', monospace; }
         .chess-serif-display { font-family: 'DM Serif Display', serif; }
+        .menu-btn { display: block; width: 100%; max-width: 280px; font-family: 'DM Mono', monospace; font-size: 0.78rem; letter-spacing: 0.15em; text-transform: uppercase; background: none; border: 1px solid ${text}30; color: ${text}; padding: 0.9rem 2rem; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .menu-btn:hover { border-color: ${text}70; background: ${text}08; }
         .settings-overlay { position: fixed; inset: 0; z-index: 100; background: ${isDark ? "rgba(0,0,0,0.7)" : "rgba(26,25,22,0.3)"}; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
         .settings-modal { background: ${theme.boardColors.pageBg}; border: 1px solid ${panelBorder}; width: 400px; max-width: 92vw; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border-radius: 8px; overflow: hidden; }
         .style-opt { padding: 1rem; cursor: pointer; border-bottom: 1px solid ${panelBorder}; transition: background 0.2s; }
@@ -561,7 +522,6 @@ export default function ChessPage() {
         .dot-ind { position: absolute; width: 24%; height: 24%; border-radius: 50%; background: ${isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)"}; pointer-events: none; z-index: 3; }
         .ring-ind { position: absolute; inset: 0; border: 4px solid ${theme.boardColors.selected}; pointer-events: none; z-index: 3; }
         
-        /* Исправлено: убрали text-shadow и оставили чистый opacity */
         .coord { position: absolute; font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 600; z-index: 1; pointer-events: none; opacity: 0.8; }
         
         .coach-scroll::-webkit-scrollbar { width: 4px; }
@@ -603,7 +563,6 @@ export default function ChessPage() {
                         <img src={pieceImgUrl} alt={`${piece?.color}${piece?.type}`} style={{ width: "86%", height: "86%", zIndex: 2, filter: theme.pieceFilter, transition: "filter 0.4s ease" }} />
                       )}
                       {isLegal && (piece ? <span className="ring-ind" /> : <span className="dot-ind" />)}
-                      {/* Исправлено: цвета берутся напрямую из настроек текущей темы */}
                       {file === "a" && <span className="coord" style={{ top: 4, left: 5, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{rank}</span>}
                       {rank === "1" && <span className="coord" style={{ bottom: 4, right: 5, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{file}</span>}
                     </button>
@@ -620,46 +579,49 @@ export default function ChessPage() {
             <div style={{ width: 320, flexShrink: 0, display: "flex", flexDirection: "column", gap: "1.5rem", marginTop: "1.5rem" }}>
               
               <div
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    background: panelBg,
-    padding: "0.75rem 1rem",
-    border: `1px solid ${panelBorder}`,
-    borderRadius: "6px",
-    gap: "0.5rem"
-  }}
->
-  <button
-    onClick={() => {
-      setIsPaused(true)
-      setSettingsOpen(true)
-    }}
-    className="chess-mono"
-    style={{
-      fontSize: "0.75rem",
-      letterSpacing: "0.12em",
-      textTransform: "uppercase",
-      background: "none",
-      border: `1px solid ${text}40`,
-      color: text,
-      padding: "0.4rem 0.8rem",
-      borderRadius: "4px",
-      cursor: "pointer",
-      transition: "all 0.2s"
-    }}
-  >
-    Pause
-  </button>
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: panelBg,
+                  padding: "0.75rem 1rem",
+                  border: `1px solid ${panelBorder}`,
+                  borderRadius: "6px",
+                  gap: "0.5rem"
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setIsPaused(true)
+                    setSettingsOpen(true)
+                  }}
+                  className="chess-mono"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: text,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0.2rem",
+                    opacity: 0.8,
+                    transition: "opacity 0.2s"
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = "0.8"}
+                  title="Pause & Settings"
+                >
+                  <Settings size={22} />
+                </button>
 
-  <div style={{ display: "flex", gap: "6px" }}>
-    <span className="swatch-circle" style={{ background: theme.boardColors.pageBg }} />
-    <span className="swatch-circle" style={{ background: theme.boardColors.dark }} />
-    <span className="swatch-circle" style={{ background: theme.boardColors.light }} />
-    <span className="swatch-circle" style={{ background: theme.boardColors.selected }} />
-  </div>
-</div>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <span className="swatch-circle" style={{ background: theme.boardColors.pageBg }} />
+                  <span className="swatch-circle" style={{ background: theme.boardColors.dark }} />
+                  <span className="swatch-circle" style={{ background: theme.boardColors.light }} />
+                  <span className="swatch-circle" style={{ background: theme.boardColors.selected }} />
+                </div>
+              </div>
 
               <div style={{ background: panelBg, border: `1px solid ${panelBorder}`, borderRadius: "6px", padding: "1.2rem" }}>
                 <p className="chess-mono" style={{ fontSize: "0.68rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}80`, marginBottom: "0.4rem", margin: 0 }}>Status</p>
@@ -700,10 +662,14 @@ export default function ChessPage() {
           <div className="settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setIsPaused(false); setSettingsOpen(false) } }}>
             <div className="settings-modal" style={{ color: text }}>
               <div style={{ padding: "1.2rem 1.5rem", borderBottom: `1px solid ${panelBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span className="chess-mono" style={{ fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase" }}>Theme Gallery</span>
+                <span className="chess-mono" style={{ fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase" }}>Settings</span>
                 <button onClick={() => { setIsPaused(false); setSettingsOpen(false) }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: text }}>✕</button>
               </div>
-              <div style={{ display: "flex", flexDirection: "column" }}>
+              
+              <div style={{ padding: "1rem 1.5rem 0.5rem" }}>
+                 <span className="chess-mono" style={{ fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", color: `${text}80` }}>Theme Gallery</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", maxHeight: "40vh", overflowY: "auto" }}>
                 {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map((key) => (
                   <div key={key} className={`style-opt${currentThemeKey === key ? " selected" : ""}`} onClick={() => setCurrentThemeKey(key)}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -721,6 +687,32 @@ export default function ChessPage() {
                   </div>
                 ))}
               </div>
+
+              <div style={{ padding: "1.5rem", borderTop: `1px solid ${panelBorder}`, display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <button
+                  className="menu-btn"
+                  style={{ maxWidth: "100%" }}
+                  onClick={() => {
+                    setIsPaused(false)
+                    setSettingsOpen(false)
+                  }}
+                >
+                  Resume Game
+                </button>
+                <button
+                  className="menu-btn"
+                  style={{ maxWidth: "100%" }}
+                  onClick={() => {
+                    resetGame()
+                    setIsPaused(false)
+                    setSettingsOpen(false)
+                    setScreen("menu")
+                  }}
+                >
+                  Exit to Menu
+                </button>
+              </div>
+
             </div>
           </div>
         )}
@@ -740,7 +732,7 @@ export default function ChessPage() {
                 </p>
               )}
               <div style={{ width: 40, height: 1, background: `${text}25`, margin: "1.8rem auto 0" }} />
-                           <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", alignItems: "center" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", alignItems: "center" }}>
                 <button className="result-btn" onClick={resetGame}>Play Again</button>
                 <button className="result-btn" style={{ fontSize: "0.65rem", opacity: 0.7 }} onClick={() => { resetGame(); setScreen("menu") }}>← Back to Menu</button>
               </div>
