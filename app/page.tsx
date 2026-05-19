@@ -6,115 +6,92 @@ import { Chess, Square, Move } from "chess.js"
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
 
-const BOARD_STYLES = {
-  prada: {
-    name: "Prada Monochrome",
-    light: "#F7F7F7",
-    dark: "#8A8A8A",
-    selected: "#C9B037",
-    lastLight: "#E5DDA0",
-    lastDark: "#B0A060",
-    pageBg: "#F5F3EF",
+// Точные цвета из твоего дизайна
+const UNIFIED_THEMES = {
+  arcticCobalt: {
+    name: "The Arctic Cobalt Theme",
+    boardColors: {
+      light: "#8B9DA6",
+      dark: "#3C454B",
+      pageBg: "#EAF4FC",
+      lastLight: "#7A8C95",
+      lastDark: "#2B343A",
+      selected: "#173BF0", 
+    },
+    coachUI: { bg: "transparent", border: "rgba(60,69,75,0.15)", text: "#1a1916" },
+    pieceFilter: "hue-rotate(180deg) brightness(1.2) drop-shadow(0 4px 4px rgba(23,59,240,0.2))", // Холодный стеклянный эффект
+    pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
   },
-  nordic: {
-    name: "Nordic Minimalist",
-    light: "#EFECE6",
-    dark: "#A89F91",
-    selected: "#C9B037",
-    lastLight: "#DDD8C0",
-    lastDark: "#A09080",
-    pageBg: "#EAE7E1",
+  amberOak: {
+    name: "The Amber Oak Theme",
+    boardColors: {
+      light: "#EBDDCB",
+      dark: "#614332",
+      pageBg: "#FDF5E6",
+      lastLight: "#DBCDBB",
+      lastDark: "#503221",
+      selected: "#D6B039", 
+    },
+    coachUI: { bg: "transparent", border: "rgba(97,67,50,0.15)", text: "#3d2b1f" },
+    pieceFilter: "drop-shadow(0 4px 6px rgba(0,0,0,0.15))", // Классическая тень
+    pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
   },
-  midnight: {
-    name: "Midnight Graphite",
-    light: "#2A2A2A",
-    dark: "#141414",
-    selected: "#4A5568",
-    lastLight: "#383838",
-    lastDark: "#202020",
-    pageBg: "#0A0A0A",
+  neonDusk: {
+    name: "The Neon Dusk Theme",
+    boardColors: {
+      light: "#2C3341",
+      dark: "#1D222B",
+      pageBg: "#161920",
+      lastLight: "#3D4452",
+      lastDark: "#2E333C",
+      selected: "#00F0FF", 
+    },
+    coachUI: { bg: "#161920", border: "rgba(255,255,255,0.1)", text: "#e5e5e5" },
+    pieceFilter: "invert(1) hue-rotate(120deg) brightness(1.5) drop-shadow(0 0 6px #00F0FF)", // Неоновое свечение
+    pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
+  },
+  softSmoke: {
+    name: "The Soft Smoke Theme",
+    boardColors: {
+      light: "#F2C9C9",
+      dark: "#8E9CA5",
+      pageBg: "#DFE2E5",
+      lastLight: "#E1B8B8",
+      lastDark: "#7D8B94",
+      selected: "#ED7979", 
+    },
+    coachUI: { bg: "#E5E8EB", border: "rgba(142,156,165,0.2)", text: "#4a555e" },
+    pieceFilter: "opacity(0.85) drop-shadow(0 2px 4px rgba(0,0,0,0.1))", // Матовый, приглушенный эффект
+    pieceSetUrl: "https://upload.wikimedia.org/wikipedia/commons/{color}{piece}.svg",
   },
 } as const
 
-type BoardStyleKey = keyof typeof BOARD_STYLES
+type UnifiedThemeKey = keyof typeof UNIFIED_THEMES
 
-const PIECE_SETS = {
-  classic: {
-    name: "Classic",
-    wp: "♙", wn: "♘", wb: "♗", wr: "♖", wq: "♕", wk: "♔",
-    bp: "♟", bn: "♞", bb: "♝", br: "♜", bq: "♛", bk: "♚",
-  },
-} as const
-
-type PieceStyleKey = keyof typeof PIECE_SETS
+const getPieceUrl = (color: string, piece: string, theme: (typeof UNIFIED_THEMES)[UnifiedThemeKey]): string => {
+  return theme.pieceSetUrl.replace('{color}', color).replace('{piece}', piece)
+}
 
 const COACH_COMMENTS = {
-  firstMove: [
-    "Interesting opening. Let's see where this strategy takes us.",
-    "A classic start. The journey of a thousand moves begins with one.",
-    "And so it begins. Show me what you've got.",
-    "Opening gambit noted. The plot thickens already.",
-    "The first brushstroke on an empty canvas. Make it count.",
-  ],
-  capture: [
-    "A bold sacrifice. Or a miscalculation. Time will tell.",
-    "Material exchange. Fortune favors the brave — or does it?",
-    "Taking pieces. Sometimes aggression is the language.",
-    "Clean capture. Prada-level precision on that move.",
-    "The board is lighter now. Was it worth it?",
-    "Blood on the squares. Chess is a violent game dressed in silk.",
-    "You took something. But what did you give up in return?",
-  ],
-  check: [
-    "Check! Pressure is on. Take a breath and look at the whole board.",
-    "The king is nervous. As he should be.",
-    "Keep that royal headache going.",
-    "Targeting the crown. How very ambitious of you.",
-    "Your king looks uncomfortably exposed. Fix that.",
-    "Check. The clock of doom ticks louder now.",
-  ],
-  castle: [
-    "Castling. Safety first, chaos later.",
-    "The king retreats to his fortress. Smart.",
-    "A wise monarch knows when to hide.",
-    "Tucked away nicely. Now unleash the rest.",
-    "The king finds shelter. Now the real game begins.",
-  ],
-  promotion: [
-    "A pawn becomes a queen. The ultimate transformation.",
-    "Promotion. From nobody to somebody in one move.",
-    "That pawn walked the entire board for this moment. Respect.",
-    "New queen on the block. Things just got interesting.",
-    "The smallest piece, the biggest ambition. Promoted.",
-  ],
-  opening: [
-    "Solid development. Classical and precise.",
-    "Textbook. Sometimes classics are classic for a reason.",
-    "Building the foundation. Patience is a virtue.",
-    "Developing nicely. The masters would approve.",
-    "Control and coordination. I like your style.",
-    "Knights before bishops. Bishops before rooks. You know the rules.",
-    "The center is contested. As it should be.",
-  ],
-  middlegame: [
-    "The battle heats up. Choose your targets wisely.",
-    "Midgame complexity. This is where games are won or lost.",
-    "Interesting maneuver. Let's see the follow-up.",
-    "The position demands creativity. Don't disappoint me.",
-    "Pieces are clashing. Stay sharp.",
-    "The board is getting crowded with ideas. Prioritize.",
-    "Tactical storm brewing. Keep your calculations tight.",
-    "Every move is a statement. What are you saying?",
-  ],
-  endgame: [
-    "Endgame precision required. Every tempo counts.",
-    "The final act approaches. Make it count.",
-    "Technique over tactics now. Stay focused.",
-    "Few pieces, big decisions. The pressure is real.",
-    "This is where preparation meets execution.",
-    "The kings come alive in the endgame. Use yours.",
-    "Pawns are gold now. Treat them accordingly.",
-  ],
+  firstMove: ["Interesting opening. Let's see where this strategy takes us.", "A classic start. The journey of a thousand moves begins with one."],
+  capture: ["Material exchange. Fortune favors the brave — or does it?", "Clean capture. Precision on that move.", "The board is lighter now. Was it worth it?"],
+  check: ["Check! Pressure is on. Take a breath and look at the whole board.", "The king is nervous. As he should be."],
+  castle: ["Castling. Safety first, chaos later.", "The king finds shelter. Now the real game begins."],
+  promotion: ["A pawn becomes a queen. The ultimate transformation.", "New queen on the block. Things just got interesting."],
+  opening: ["Solid development. Classical and precise.", "Building the foundation. Patience is a virtue.", "The center is contested. As it should be."],
+  middlegame: ["The battle heats up. Choose your targets wisely.", "Midgame complexity. This is where games are won or lost.", "Pieces are clashing. Stay sharp."],
+  endgame: ["Endgame precision required. Every tempo counts.", "The final act approaches. Make it count.", "Pawns are gold now. Treat them accordingly."],
+}
+
+function generateHint(game: Chess): string {
+  if (game.isCheckmate()) return "The game is over. Study this position — there is much to learn."
+  if (game.isDraw()) return "A drawn position. Neither side could find the decisive blow."
+  if (game.isCheck()) return `${game.turn() === "w" ? "White" : "Black"} is in check. The king demands immediate attention.`
+  const moves = game.moves({ verbose: true })
+  const captures = moves.filter((m) => m.san.includes("x"))
+  if (captures.length > 0) return `Tension detected. Capturing on ${captures[0].to} is architecturally sound.`
+  if (game.history().length < 6) return "In the opening, development is everything. Control the center."
+  return "Assess the position. Look for undefended pieces and open files. Then act."
 }
 
 function formatTime(seconds: number): string {
@@ -125,65 +102,23 @@ function formatTime(seconds: number): string {
 
 function generateComment(move: Move, game: Chess, lastComment: string, usedRef: React.MutableRefObject<Set<string>>): string {
   const n = game.history().length
-  const pool: string[] = (() => {
-    if (n === 1) return COACH_COMMENTS.firstMove
-    if (move.san.includes("+")) return COACH_COMMENTS.check
-    if (move.san.includes("x")) return COACH_COMMENTS.capture
-    if (move.san.includes("O-O")) return COACH_COMMENTS.castle
-    if (move.san.includes("=")) return COACH_COMMENTS.promotion
-    if (n <= 10) return COACH_COMMENTS.opening
-    if (n <= 30) return COACH_COMMENTS.middlegame
-    return COACH_COMMENTS.endgame
-  })()
+  const pool = n === 1 ? COACH_COMMENTS.firstMove : move.san.includes("+") ? COACH_COMMENTS.check : move.san.includes("x") ? COACH_COMMENTS.capture : move.san.includes("O-O") ? COACH_COMMENTS.castle : move.san.includes("=") ? COACH_COMMENTS.promotion : n <= 10 ? COACH_COMMENTS.opening : n <= 30 ? COACH_COMMENTS.middlegame : COACH_COMMENTS.endgame
   let candidates = pool.filter((c) => c !== lastComment && !usedRef.current.has(c))
   if (candidates.length === 0) { usedRef.current.clear(); candidates = pool.filter((c) => c !== lastComment) }
   if (candidates.length === 0) candidates = pool
   const chosen = candidates[Math.floor(Math.random() * candidates.length)]
   usedRef.current.add(chosen)
-  if (usedRef.current.size > 10) {
-    const first = usedRef.current.values().next().value
-    if (first) usedRef.current.delete(first)
-  }
   return chosen
-}
-
-function generateHint(game: Chess): string {
-  if (game.isCheckmate()) return "The game is over. Study this position — there is much to learn."
-  if (game.isDraw()) return "A drawn position. Neither side could find the decisive blow."
-  if (game.isCheck()) {
-    const turn = game.turn() === "w" ? "White" : "Black"
-    return `${turn} is in check. The king demands immediate attention — all other plans are secondary.`
-  }
-  const moves = game.moves({ verbose: true })
-  const history = game.history()
-  const n = history.length
-  const checks = moves.filter((m) => m.san.includes("+"))
-  if (checks.length > 0) return `There is a check available. Look for ${checks[0].san}.`
-  const captures = moves.filter((m) => m.san.includes("x"))
-  if (captures.length > 1) return "Multiple captures available. Before taking, ask: does it improve your position?"
-  if (n < 6) return "In the opening, development is everything. Bring your knights and bishops into the game before committing to an attack."
-  const castles = moves.filter((m) => m.san.includes("O-O"))
-  if (castles.length > 0) return "You can castle. King safety is paramount — consider tucking away before launching an offensive."
-  if (n >= 30) return "The endgame requires technique over tactics. Activate your king — it becomes a powerful piece in the final phase."
-  return "Assess the position. Look for undefended pieces, open files for rooks, and the safety of both kings. Then act."
 }
 
 function useLocalStorage<T>(key: string, defaultValue: T): [T, (v: T) => void] {
   const [value, setValue] = useState<T>(defaultValue)
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(key)
-      if (stored) setValue(JSON.parse(stored) as T)
-    } catch {}
+    try { const stored = localStorage.getItem(key); if (stored) setValue(JSON.parse(stored) as T) } catch {}
   }, [key])
-  const set = useCallback((v: T) => {
-    setValue(v)
-    try { localStorage.setItem(key, JSON.stringify(v)) } catch {}
-  }, [key])
+  const set = useCallback((v: T) => { setValue(v); try { localStorage.setItem(key, JSON.stringify(v)) } catch {} }, [key])
   return [value, set]
 }
-
-type SettingsTab = "game" | "board" | "pieces"
 
 export default function ChessPage() {
   const [game, setGame] = useState(() => new Chess())
@@ -198,47 +133,34 @@ export default function ChessPage() {
   const [isPaused, setIsPaused] = useState(false)
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<SettingsTab>("game")
-  const [boardStyle, setBoardStyle] = useLocalStorage<BoardStyleKey>("chess_boardStyle", "prada")
-  const [pieceStyle, setPieceStyle] = useLocalStorage<PieceStyleKey>("chess_pieceStyle", "classic")
+  
+  // Устанавливаем Amber Oak как базовую тему по умолчанию
+  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_unifiedTheme", "amberOak")
+  
   const coachRef = useRef<HTMLDivElement>(null)
   const usedPhrasesRef = useRef<Set<string>>(new Set())
 
-  const bs = BOARD_STYLES[boardStyle] || BOARD_STYLES.prada
-  const ps = PIECE_SETS[pieceStyle] || PIECE_SETS.classic
-  const isDark = boardStyle === "midnight"
-
+  const theme = UNIFIED_THEMES[currentThemeKey]
+  const isDark = currentThemeKey === "neonDusk"
+  
   useEffect(() => {
-    document.body.style.backgroundColor = bs.pageBg
-    document.body.style.transition = "background-color 0.3s ease"
+    document.body.style.backgroundColor = theme.boardColors.pageBg
+    document.body.style.transition = "background-color 0.4s ease"
     return () => { document.body.style.backgroundColor = "" }
-  }, [bs.pageBg])
+  }, [theme.boardColors.pageBg])
 
-  useEffect(() => {
-    if (coachRef.current) coachRef.current.scrollTop = coachRef.current.scrollHeight
-  }, [coachMessages])
+  useEffect(() => { if (coachRef.current) coachRef.current.scrollTop = coachRef.current.scrollHeight }, [coachMessages])
 
   useEffect(() => {
     if (!isGameActive || game.isGameOver() || isPaused) return
     const interval = setInterval(() => {
-      if (game.turn() === "w") {
-        setWhiteTime((prev) => {
-          if (prev <= 1) { setIsGameActive(false); addCoach("Time expired. Black wins on time."); return 0 }
-          return prev - 1
-        })
-      } else {
-        setBlackTime((prev) => {
-          if (prev <= 1) { setIsGameActive(false); addCoach("Time expired. White wins on time."); return 0 }
-          return prev - 1
-        })
-      }
+      if (game.turn() === "w") setWhiteTime(p => { if (p <= 1) { setIsGameActive(false); addCoach("Time expired. Black wins."); return 0 }; return p - 1 })
+      else setBlackTime(p => { if (p <= 1) { setIsGameActive(false); addCoach("Time expired. White wins."); return 0 }; return p - 1 })
     }, 1000)
     return () => clearInterval(interval)
   }, [isGameActive, game, isPaused])
 
-  const addCoach = useCallback((msg: string) => {
-    setCoachMessages((prev) => [...prev, msg])
-  }, [])
+  const addCoach = useCallback((msg: string) => setCoachMessages(prev => [...prev, msg]), [])
 
   const handleSquareClick = useCallback((square: Square) => {
     if (game.isGameOver() || isPaused) return
@@ -259,187 +181,119 @@ export default function ChessPage() {
           setLastCoachComment(comment)
           addCoach(comment)
           if (game.isCheckmate()) { addCoach(`Checkmate. ${game.turn() === "w" ? "Black" : "White"} wins.`); setIsGameActive(false) }
-          else if (game.isDraw()) { addCoach("The game ends in a draw. Equilibrium achieved."); setIsGameActive(false) }
+          else if (game.isDraw()) { addCoach("Draw. Equilibrium achieved."); setIsGameActive(false) }
           setGame(new Chess(game.fen()))
         }
       } catch {}
     }
-    setSelectedSquare(null)
-    setLegalMoves([])
+    setSelectedSquare(null); setLegalMoves([])
   }, [game, selectedSquare, legalMoves, isGameActive, isPaused, lastCoachComment, addCoach])
 
-  const handleHint = () => addCoach("— " + generateHint(game))
-
-  const resetGame = () => {
-    setGame(new Chess()); setSelectedSquare(null); setLegalMoves([])
-    setMoveHistory([]); setCoachMessages(["New game. White to move. Good luck."])
-    setLastCoachComment(""); setWhiteTime(600); setBlackTime(600)
-    setIsGameActive(false); setIsPaused(false); setLastMove(null)
-  }
-
-  const undoMove = () => {
-    game.undo()
-    setGame(new Chess(game.fen()))
-    setMoveHistory([...game.history()])
-    setSelectedSquare(null); setLegalMoves([]); setLastMove(null)
-    addCoach("Move undone. Reconsider.")
-  }
-
   const getSquareBg = (file: string, rank: string, sq: Square) => {
-    const isLight = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
-    if (selectedSquare === sq) return bs.selected
-    if (lastMove && (lastMove.from === sq || lastMove.to === sq)) return isLight ? bs.lastLight : bs.lastDark
-    return isLight ? bs.light : bs.dark
-  }
-
-  const statusText = () => {
-    if (game.isCheckmate()) return `Checkmate — ${game.turn() === "w" ? "Black" : "White"} wins`
-    if (game.isDraw()) return "Draw"
-    if (game.isCheck()) return `${game.turn() === "w" ? "White" : "Black"} in check`
-    return `${game.turn() === "w" ? "White" : "Black"} to move`
+    const isLightSq = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
+    if (selectedSquare === sq) return theme.boardColors.selected
+    if (lastMove && (lastMove.from === sq || lastMove.to === sq)) return isLightSq ? theme.boardColors.lastLight : theme.boardColors.lastDark
+    return isLightSq ? theme.boardColors.light : theme.boardColors.dark
   }
 
   const isWhiteActive = game.turn() === "w" && isGameActive && !isPaused
   const isBlackActive = game.turn() === "b" && isGameActive && !isPaused
 
-  const BOARD_STYLE_SWATCHES: Record<BoardStyleKey, string[]> = {
-    prada: ["#F7F7F7", "#8A8A8A", "#C9B037"],
-    nordic: ["#EFECE6", "#A89F91", "#C9B037"],
-    midnight: ["#2A2A2A", "#141414", "#4A5568"],
-  }
-
-  const text = isDark ? "#e5e5e5" : "#1a1916"
-  const panelBg = isDark ? "#1a1a1a" : "#ffffff"
-  const panelBorder = isDark ? "rgba(255,255,255,0.1)" : "rgba(26,25,22,0.12)"
+  const text = isDark ? "#e5e5e5" : theme.coachUI.text
+  const panelBorder = theme.coachUI.border
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&display=swap');
-        .chess-root { font-family: 'EB Garamond', Georgia, serif; background: transparent; min-height: 100vh; color: ${text}; transition: color 0.3s ease; }
+        @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&family=DM+Serif+Display:ital@0;1&display=swap');
+        .chess-root { font-family: 'EB Garamond', Georgia, serif; background: transparent; min-height: 100vh; color: ${text}; transition: color 0.4s ease; }
         .chess-root * { box-sizing: border-box; }
         .chess-mono { font-family: 'DM Mono', monospace; }
-        .settings-overlay { position: fixed; inset: 0; z-index: 100; background: ${isDark ? "rgba(0,0,0,0.6)" : "rgba(26,25,22,0.4)"}; backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; }
-        .settings-modal { background: ${panelBg}; border: 1px solid ${panelBorder}; width: 360px; max-width: 92vw; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); }
-        .modal-tab-btn { flex: 1; padding: 0.6rem 0; font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; background: none; border: none; cursor: pointer; color: #a09e99; border-bottom: 1.5px solid transparent; transition: all 0.15s; }
-        .modal-tab-btn.active { color: ${text}; border-bottom-color: ${text}; }
-        .modal-action-btn { width: 100%; font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.7rem 1rem; border: 0.5px solid ${panelBorder}; background: none; color: #6b6860; cursor: pointer; text-align: left; transition: all 0.15s; }
-        .modal-action-btn:hover { background: ${text}; color: ${isDark ? "#0a0a0a" : "#fff"}; border-color: ${text}; }
-        .style-opt { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.8rem; border: 0.5px solid ${panelBorder}; cursor: pointer; margin-bottom: 0.4rem; font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: #6b6860; transition: all 0.15s; }
-        .style-opt:hover, .style-opt.selected { border-color: ${text}; color: ${text}; }
-        .opt-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid currentColor; }
-        .style-opt.selected .opt-dot { background: currentColor; }
-        .swatch { width: 12px; height: 12px; border: 0.5px solid rgba(26,25,22,0.2); display: inline-block; }
+        .chess-serif-display { font-family: 'DM Serif Display', serif; }
+        .settings-overlay { position: fixed; inset: 0; z-index: 100; background: ${isDark ? "rgba(0,0,0,0.7)" : "rgba(26,25,22,0.3)"}; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
+        .settings-modal { background: ${theme.boardColors.pageBg}; border: 1px solid ${panelBorder}; width: 400px; max-width: 92vw; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border-radius: 8px; overflow: hidden; }
+        .style-opt { padding: 1rem; cursor: pointer; border-bottom: 1px solid ${panelBorder}; transition: background 0.2s; }
+        .style-opt:last-child { border-bottom: none; }
+        .style-opt:hover { background: rgba(0,0,0,0.03); }
+        .style-opt.selected { background: ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}; }
+        .swatch-circle { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); display: inline-block; }
         .sq-btn { position: relative; display: flex; align-items: center; justify-content: center; border: none; padding: 0; cursor: pointer; transition: filter 0.1s; aspect-ratio: 1; }
-        .sq-btn:hover { filter: brightness(0.94); }
-        .dot-ind { position: absolute; width: 28%; height: 28%; border-radius: 50%; background: rgba(26,25,22,0.35); pointer-events: none; z-index: 3; }
-        .ring-ind { position: absolute; inset: 3%; border: 3px solid rgba(26,25,22,0.3); pointer-events: none; z-index: 3; }
-        .coord { position: absolute; font-size: 9px; font-family: 'DM Mono', monospace; font-weight: 300; opacity: 0.5; z-index: 1; pointer-events: none; }
-        .coach-scroll::-webkit-scrollbar { width: 3px; }
-        .coach-scroll::-webkit-scrollbar-thumb { background: rgba(26,25,22,0.15); }
+        .sq-btn:hover { filter: brightness(0.95); }
+        .dot-ind { position: absolute; width: 28%; height: 28%; border-radius: 50%; background: ${isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)"}; pointer-events: none; z-index: 3; }
+        .ring-ind { position: absolute; inset: 3%; border: 4px solid ${isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)"}; pointer-events: none; z-index: 3; }
+        .coord { position: absolute; font-size: 10px; font-family: 'DM Mono', monospace; font-weight: 400; opacity: 0.6; z-index: 1; pointer-events: none; }
+        .coach-scroll::-webkit-scrollbar { width: 4px; }
+        .coach-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
       `}</style>
 
       <div className="chess-root">
-        <div style={{ maxWidth: 940, margin: "0 auto", padding: "2rem 1.25rem 3rem" }}>
-          <header style={{ textAlign: "center", marginBottom: "2rem", borderBottom: `0.5px solid ${panelBorder}`, paddingBottom: "1.25rem", position: "relative" }}>
-            <h1 style={{ fontSize: "1.5rem", fontWeight: 400, letterSpacing: "0.18em", textTransform: "uppercase", color: text, margin: 0 }}>Chess Platform</h1>
-            <p className="chess-mono" style={{ fontSize: "0.72rem", letterSpacing: "0.25em", textTransform: "uppercase", color: "#a09e99", marginTop: "0.2rem", fontWeight: 300 }}>Premium Edition</p>
-            <button
-              onClick={() => { setIsPaused(true); setSettingsOpen(true) }}
-              style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", background: panelBg, border: `1px solid ${text}`, width: 36, height: 36, borderRadius: "50%", cursor: "pointer", fontSize: "1.1rem", color: text, display: "flex", alignItems: "center", justifyContent: "center" }}
-              title="Settings"
-            >⚙</button>
-          </header>
-
-          <div style={{ display: "flex", gap: "1.75rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 980, margin: "0 auto", padding: "2.5rem 1.5rem 4rem" }}>
+          
+          <div style={{ display: "flex", gap: "2.5rem", alignItems: "flex-start", flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 280 }}>
-              {/* Black timer */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.55rem 0.85rem", marginBottom: "0.4rem", border: `0.5px solid ${isBlackActive ? text : panelBorder}`, background: panelBg, transition: "border-color 0.2s" }}>
-                <div className="chess-mono" style={{ display: "flex", alignItems: "center", gap: "0.45rem", fontSize: "0.7rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b6860" }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: isDark ? "#e5e5e5" : "#1a1916" }} /> Black
-                </div>
-                <span className="chess-mono" style={{ fontSize: "0.88rem", color: isBlackActive ? text : "#a09e99", letterSpacing: "0.05em" }}>{formatTime(blackTime)}</span>
-              </div>
-
-              {/* Board */}
-              <div style={{ width: "100%", aspectRatio: "1", display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(8,1fr)", border: `1px solid ${panelBorder}` }}>
+              
+              <div style={{ width: "100%", aspectRatio: "1", display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(8,1fr)", borderRadius: "4px", overflow: "hidden", border: `1px solid ${panelBorder}`, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.15)" }}>
                 {RANKS.map((rank) => FILES.map((file) => {
                   const sq = `${file}${rank}` as Square
                   const piece = game.get(sq)
-                  const isLight = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
+                  const isLightSq = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
                   const isLegal = legalMoves.includes(sq)
-                  const pieceKey = piece ? `${piece.color}${piece.type}` as keyof typeof ps : null
-                  const wStyle = { color: "#ffffff", filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.08))" }
-                  const bStyle = { color: "#111111", filter: "brightness(0.15) contrast(1.2) drop-shadow(0 4px 6px rgba(0,0,0,0.12))" }
+                  const pieceImgUrl = piece ? getPieceUrl(piece.color, piece.type, theme) : null
+
                   return (
                     <button key={sq} className="sq-btn" onClick={() => handleSquareClick(sq)} style={{ background: getSquareBg(file, rank, sq) }}>
-                      {pieceKey && (
-                        <span style={{ fontSize: "clamp(1.3rem, 3.5vw, 2rem)", lineHeight: 1, userSelect: "none", position: "relative", zIndex: 2, ...(piece?.color === "w" ? wStyle : bStyle) }}>
-                          {ps[pieceKey]}
-                        </span>
+                      {pieceImgUrl && (
+                        <img src={pieceImgUrl} alt={`${piece?.color}${piece?.type}`} style={{ width: "85%", height: "85%", zIndex: 2, filter: theme.pieceFilter, transition: "filter 0.4s ease" }} />
                       )}
                       {isLegal && (piece ? <span className="ring-ind" /> : <span className="dot-ind" />)}
-                      {file === "a" && <span className="coord" style={{ top: 2, left: 3, color: isLight ? bs.dark : bs.light }}>{rank}</span>}
-                      {rank === "1" && <span className="coord" style={{ bottom: 2, right: 3, color: isLight ? bs.dark : bs.light }}>{file}</span>}
+                      {file === "a" && <span className="coord" style={{ top: 3, left: 4, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{rank}</span>}
+                      {rank === "1" && <span className="coord" style={{ bottom: 3, right: 4, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{file}</span>}
                     </button>
                   )
                 }))}
               </div>
-
-              {/* White timer */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.55rem 0.85rem", marginTop: "0.4rem", border: `0.5px solid ${isWhiteActive ? text : panelBorder}`, background: panelBg, transition: "border-color 0.2s" }}>
-                <div className="chess-mono" style={{ display: "flex", alignItems: "center", gap: "0.45rem", fontSize: "0.7rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b6860" }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "transparent", border: `1px solid ${isDark ? "#888" : "rgba(26,25,22,0.3)"}` }} /> White
-                </div>
-                <span className="chess-mono" style={{ fontSize: "0.88rem", color: isWhiteActive ? text : "#a09e99", letterSpacing: "0.05em" }}>{formatTime(whiteTime)}</span>
-              </div>
-
-              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", justifyContent: "center" }}>
-                {[{ label: "New Game", onClick: resetGame, disabled: false }, { label: "Undo", onClick: undoMove, disabled: moveHistory.length === 0 }].map(({ label, onClick, disabled }) => (
-                  <button key={label} onClick={onClick} disabled={disabled} className="chess-mono"
-                    style={{ fontSize: "0.68rem", letterSpacing: "0.12em", textTransform: "uppercase", padding: "0.5rem 1rem", border: `1px solid ${text}`, background: panelBg, color: text, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.35 : 1, transition: "all 0.15s" }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
             </div>
 
-            <div style={{ width: 248, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-              <div style={{ border: `0.5px solid ${panelBorder}`, background: panelBg, padding: "0.85rem 1rem" }}>
-                <div className="chess-mono" style={{ fontSize: "0.62rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "#a09e99", marginBottom: "0.45rem", borderBottom: `0.5px solid rgba(26,25,22,0.08)`, paddingBottom: "0.35rem", fontWeight: 300 }}>Status</div>
-                <p style={{ fontSize: "0.85rem", fontStyle: "italic", color: text }}>{statusText()}</p>
+            <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                 <button onClick={() => setSettingsOpen(true)} className="chess-mono" style={{ fontSize: "0.75rem", letterSpacing: "0.15em", textTransform: "uppercase", background: "none", border: `1px solid ${panelBorder}`, color: text, padding: "0.4rem 0.8rem", borderRadius: "4px", cursor: "pointer" }}>Select Theme</button>
+                 <div style={{ display: "flex", gap: "6px" }}>
+                    <span className="swatch-circle" style={{ background: theme.boardColors.pageBg }} />
+                    <span className="swatch-circle" style={{ background: theme.boardColors.dark }} />
+                    <span className="swatch-circle" style={{ background: theme.boardColors.light }} />
+                    <span className="swatch-circle" style={{ background: theme.boardColors.selected }} />
+                 </div>
               </div>
 
-              <div style={{ border: `0.5px solid ${panelBorder}`, background: panelBg, padding: "0.85rem 1rem" }}>
-                <div className="chess-mono" style={{ fontSize: "0.62rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "#a09e99", marginBottom: "0.5rem", borderBottom: `0.5px solid rgba(26,25,22,0.08)`, paddingBottom: "0.35rem", fontWeight: 300 }}>Move History</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.12rem", maxHeight: 118, overflowY: "auto" }}>
-                  {moveHistory.length === 0
-                    ? <p className="chess-mono" style={{ fontSize: "0.7rem", color: "#a09e99", fontStyle: "italic", gridColumn: "span 2" }}>No moves yet</p>
-                    : moveHistory.map((move, i) => (
-                      <div key={i} className="chess-mono" style={{ fontSize: "0.7rem", color: i % 2 === 0 ? text : "#6b6860" }}>
-                        {i % 2 === 0 && <span style={{ color: "#a09e99", marginRight: 2 }}>{Math.floor(i / 2) + 1}.</span>}
-                        {move}
-                      </div>
-                    ))
-                  }
-                </div>
+              <div style={{ borderBottom: `1px solid ${panelBorder}`, paddingBottom: "1rem" }}>
+                <p className="chess-mono" style={{ fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}90`, marginBottom: "0.5rem" }}>Status</p>
+                <p className="chess-serif-display" style={{ fontSize: "1.1rem", fontStyle: "italic", color: text, margin: 0 }}>{
+                  game.isCheckmate() ? `Checkmate — ${game.turn() === "w" ? "Black" : "White"} wins.` :
+                  game.isDraw() ? "A drawn position." :
+                  game.isCheck() ? `${game.turn() === "w" ? "White" : "Black"} in check.` :
+                  `${game.turn() === "w" ? "White" : "Black"} to move`
+                }</p>
               </div>
 
-              <div style={{ border: `0.5px solid ${panelBorder}`, background: isDark ? "#111" : "#faf9f7", padding: "0.85rem 1rem" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem", borderBottom: `0.5px solid rgba(26,25,22,0.08)`, paddingBottom: "0.35rem" }}>
-                  <span className="chess-mono" style={{ fontSize: "0.62rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "#a09e99", fontWeight: 300 }}>AI Coach</span>
-                  <button onClick={handleHint} className="chess-mono"
-                    style={{ fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.28rem 0.6rem", border: `1px solid ${text}`, background: panelBg, color: text, cursor: "pointer", transition: "all 0.15s" }}>
-                    Get Hint
-                  </button>
-                </div>
-                <div ref={coachRef} className="coach-scroll" style={{ maxHeight: 140, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+              <div style={{ borderBottom: `1px solid ${panelBorder}`, paddingBottom: "1rem" }}>
+                <p className="chess-mono" style={{ fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}90`, marginBottom: "0.5rem" }}>Move History</p>
+                <p className="chess-serif-display" style={{ fontSize: "1rem", fontStyle: "italic", color: text, margin: 0 }}>
+                  {moveHistory.length === 0 ? "No moves yet" : moveHistory[moveHistory.length - 1]}
+                </p>
+              </div>
+
+              <div style={{ background: theme.coachUI.bg, border: `1px solid ${panelBorder}`, borderRadius: "4px", padding: "1.2rem", position: "relative" }}>
+                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem" }}>
+                    <p className="chess-mono" style={{ fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}90`, margin: 0 }}>AI Coach</p>
+                    <button onClick={handleHint} className="chess-mono" style={{ fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.6rem", border: `1px solid ${isDark ? "#00F0FF" : "#D6B039"}`, background: "transparent", color: isDark ? "#00F0FF" : "#D6B039", borderRadius: "4px", cursor: "pointer" }}>Get Hint</button>
+                 </div>
+                 <div ref={coachRef} className="coach-scroll" style={{ maxHeight: 120, overflowY: "auto" }}>
                   {coachMessages.map((msg, i) => (
-                    <p key={i} style={{ fontSize: "0.8rem", lineHeight: 1.55, fontStyle: "italic", padding: "0.3rem 0.45rem", color: i === coachMessages.length - 1 ? text : "#6b6860", background: i === coachMessages.length - 1 ? (isDark ? "rgba(255,255,255,0.05)" : "rgba(26,25,22,0.04)") : "transparent" }}>
+                    <p key={i} className="chess-serif-display" style={{ fontSize: "0.95rem", fontStyle: "italic", lineHeight: 1.5, margin: "0 0 0.5rem 0", color: i === coachMessages.length - 1 ? text : `${text}80` }}>
                       {msg}
                     </p>
                   ))}
-                </div>
+                 </div>
               </div>
             </div>
           </div>
@@ -447,53 +301,28 @@ export default function ChessPage() {
 
         {settingsOpen && (
           <div className="settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setIsPaused(false); setSettingsOpen(false) } }}>
-            <div className="settings-modal">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem 1.2rem 0.75rem", borderBottom: `0.5px solid ${panelBorder}` }}>
-                <span className="chess-mono" style={{ fontSize: "0.7rem", letterSpacing: "0.2em", textTransform: "uppercase", fontWeight: 300, color: text }}>Settings</span>
-                <button onClick={() => { setIsPaused(false); setSettingsOpen(false) }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1rem", color: "#a09e99" }}>✕</button>
+            <div className="settings-modal" style={{ color: text }}>
+              <div style={{ padding: "1.2rem 1.5rem", borderBottom: `1px solid ${panelBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span className="chess-mono" style={{ fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase" }}>Theme Gallery</span>
+                <button onClick={() => { setIsPaused(false); setSettingsOpen(false) }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: text }}>✕</button>
               </div>
-              <div style={{ display: "flex", borderBottom: `0.5px solid ${panelBorder}` }}>
-                {(["game", "board", "pieces"] as SettingsTab[]).map((tab) => (
-                  <button key={tab} className={`modal-tab-btn${activeTab === tab ? " active" : ""}`} onClick={() => setActiveTab(tab)}>
-                    {tab === "game" ? "Game" : tab === "board" ? "Board Style" : "Piece Style"}
-                  </button>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map((key) => (
+                  <div key={key} className={`style-opt${currentThemeKey === key ? " selected" : ""}`} onClick={() => setCurrentThemeKey(key)}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span className="chess-mono" style={{ fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: currentThemeKey === key ? text : "transparent", border: `1px solid ${text}` }}></span>
+                            {UNIFIED_THEMES[key].name}
+                        </span>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <span className="swatch-circle" style={{ background: UNIFIED_THEMES[key].boardColors.pageBg }} />
+                          <span className="swatch-circle" style={{ background: UNIFIED_THEMES[key].boardColors.dark }} />
+                          <span className="swatch-circle" style={{ background: UNIFIED_THEMES[key].boardColors.light }} />
+                          <span className="swatch-circle" style={{ background: UNIFIED_THEMES[key].boardColors.selected }} />
+                        </div>
+                    </div>
+                  </div>
                 ))}
-              </div>
-              <div style={{ padding: "1.1rem 1.2rem 1.4rem" }}>
-                {activeTab === "game" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
-                    <button className="modal-action-btn" onClick={() => { setIsPaused(false); setSettingsOpen(false) }}>Resume Game</button>
-                    <button className="modal-action-btn" onClick={() => { resetGame(); setSettingsOpen(false) }}>Reset Game</button>
-                  </div>
-                )}
-                {activeTab === "board" && (
-                  <div>
-                    {(Object.keys(BOARD_STYLES) as BoardStyleKey[]).map((key) => (
-                      <div key={key} className={`style-opt${boardStyle === key ? " selected" : ""}`} onClick={() => setBoardStyle(key)}>
-                        <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                          <span style={{ display: "flex", gap: 3 }}>
-                            {BOARD_STYLE_SWATCHES[key].map((c, i) => <span key={i} className="swatch" style={{ background: c }} />)}
-                          </span>
-                          {BOARD_STYLES[key].name}
-                        </span>
-                        <span className="opt-dot" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {activeTab === "pieces" && (
-                  <div>
-                    {(Object.keys(PIECE_SETS) as PieceStyleKey[]).map((key) => (
-                      <div key={key} className={`style-opt${pieceStyle === key ? " selected" : ""}`} onClick={() => setPieceStyle(key)}>
-                        <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                          <span style={{ fontSize: "0.9rem", opacity: 0.7 }}>{PIECE_SETS[key].wk}{PIECE_SETS[key].bk}</span>
-                          {PIECE_SETS[key].name}
-                        </span>
-                        <span className="opt-dot" />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
