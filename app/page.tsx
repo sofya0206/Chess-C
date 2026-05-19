@@ -6,7 +6,7 @@ import { Chess, Square, Move } from "chess.js"
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
 
-// Единая ссылка на облачное хранилище оригинальных фигур SKAK
+// Прямая ссылка на облачное хранилище оригинальных фигур
 const SKAK_PIECES_URL = "https://raw.githubusercontent.com/MuTsunTsai/skak-svg/main/svg/{color}{piece}.svg"
 
 const UNIFIED_THEMES = {
@@ -17,9 +17,9 @@ const UNIFIED_THEMES = {
       light: "#A3B8CC",
       dark: "#4C5A66",
       pageBg: "#EAF4FC",
-      lastLight: "rgba(23,59,240,0.2)",
-      lastDark: "rgba(23,59,240,0.3)",
-      selected: "rgba(23,59,240,0.5)", 
+      lastLight: "rgba(23,59,240,0.3)",
+      lastDark: "rgba(23,59,240,0.4)",
+      selected: "rgba(23,59,240,0.6)", 
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(60,69,75,0.2)", text: "#1a1916" },
     pieceFilter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
@@ -32,9 +32,9 @@ const UNIFIED_THEMES = {
       light: "#EBDDCB",
       dark: "#614332",
       pageBg: "#FDF5E6",
-      lastLight: "rgba(214,176,57,0.3)",
-      lastDark: "rgba(214,176,57,0.4)",
-      selected: "rgba(214,176,57,0.6)", 
+      lastLight: "rgba(214,176,57,0.4)",
+      lastDark: "rgba(214,176,57,0.5)",
+      selected: "rgba(214,176,57,0.7)", 
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(97,67,50,0.2)", text: "#3d2b1f" },
     pieceFilter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
@@ -42,14 +42,14 @@ const UNIFIED_THEMES = {
   },
   neonDusk: {
     name: "The Neon Dusk Theme",
-    boardImageUrl: "", 
+    boardImageUrl: "", // Для неона картинка не нужна
     boardColors: {
       light: "#2C3341",
       dark: "#1D222B",
       pageBg: "#161920",
       lastLight: "#3D4452",
       lastDark: "#2E333C",
-      selected: "rgba(0,240,255,0.3)", 
+      selected: "rgba(0,240,255,0.4)", 
     },
     coachUI: { bg: "#1D222B", border: "rgba(255,255,255,0.1)", text: "#e5e5e5" },
     pieceFilter: "invert(1) hue-rotate(180deg) brightness(2) drop-shadow(0 0 6px #00F0FF)", 
@@ -62,9 +62,9 @@ const UNIFIED_THEMES = {
       light: "#E3C8C8",
       dark: "#7E8E99",
       pageBg: "#DFE2E5",
-      lastLight: "rgba(237,121,121,0.3)",
-      lastDark: "rgba(237,121,121,0.4)",
-      selected: "rgba(237,121,121,0.6)", 
+      lastLight: "rgba(237,121,121,0.4)",
+      lastDark: "rgba(237,121,121,0.5)",
+      selected: "rgba(237,121,121,0.7)", 
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(142,156,165,0.2)", text: "#4a555e" },
     pieceFilter: "opacity(0.85) drop-shadow(0 2px 4px rgba(0,0,0,0.12))",
@@ -140,7 +140,7 @@ export default function ChessPage() {
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   
-  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v9", "amberOak")
+  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v10", "amberOak")
   
   const coachRef = useRef<HTMLDivElement>(null)
   const usedPhrasesRef = useRef<Set<string>>(new Set())
@@ -195,18 +195,35 @@ export default function ChessPage() {
     setSelectedSquare(null); setLegalMoves([])
   }, [game, selectedSquare, legalMoves, isGameActive, isPaused, lastCoachComment, addCoach])
 
-  const getSquareBg = (file: string, rank: string, sq: Square) => {
+  // НОВАЯ ГЕНИАЛЬНАЯ ЛОГИКА КЛЕТОК (Нарезаем картинки на две половинки)
+  const getSquareStyle = (file: string, rank: string, sq: Square): React.CSSProperties => {
     const isLightSq = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
     
-    if (selectedSquare === sq) return theme.boardColors.selected
-    if (lastMove && (lastMove.from === sq || lastMove.to === sq)) return isLightSq ? theme.boardColors.lastLight : theme.boardColors.lastDark
-    
-    if (theme.boardImageUrl) {
-      // D9 = 85% непрозрачности. Цвета перекрывают градиент картинки, но текстура мягко просвечивает.
-      return isLightSq ? `${theme.boardColors.light}D9` : `${theme.boardColors.dark}D9`
+    // Определяем цвет подсветки (если клетка выделена или был ход)
+    let highlightColor = ""
+    if (selectedSquare === sq) highlightColor = theme.boardColors.selected
+    if (lastMove && (lastMove.from === sq || lastMove.to === sq)) {
+      highlightColor = isLightSq ? theme.boardColors.lastLight : theme.boardColors.lastDark
     }
-    
-    return isLightSq ? theme.boardColors.light : theme.boardColors.dark
+
+    if (theme.boardImageUrl) {
+      // 100% 200% растягивает картинку так, что видна только её половина.
+      // Если светлая клетка - показываем верх (top), если темная - низ (bottom).
+      return {
+        backgroundImage: highlightColor 
+          ? `linear-gradient(${highlightColor}, ${highlightColor}), url("${theme.boardImageUrl}")` 
+          : `url("${theme.boardImageUrl}")`,
+        backgroundSize: "100% 200%",
+        backgroundPosition: isLightSq ? "top" : "bottom",
+        transition: "all 0.2s ease"
+      }
+    }
+
+    // Стандартное поведение для Неона (где нет картинок)
+    return {
+      backgroundColor: highlightColor || (isLightSq ? theme.boardColors.light : theme.boardColors.dark),
+      transition: "background-color 0.2s ease"
+    }
   }
 
   const isWhiteActive = game.turn() === "w" && isGameActive && !isPaused
@@ -234,7 +251,7 @@ export default function ChessPage() {
         .sq-btn { position: relative; display: flex; align-items: center; justify-content: center; border: none; padding: 0; cursor: pointer; aspect-ratio: 1; }
         .dot-ind { position: absolute; width: 24%; height: 24%; border-radius: 50%; background: ${isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)"}; pointer-events: none; z-index: 3; }
         .ring-ind { position: absolute; inset: 0; border: 4px solid ${theme.boardColors.selected}; pointer-events: none; z-index: 3; }
-        .coord { position: absolute; font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 600; z-index: 1; pointer-events: none; text-shadow: 0 0 3px rgba(255,255,255,0.8); color: #000; opacity: 0.7; }
+        .coord { position: absolute; font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 600; z-index: 1; pointer-events: none; text-shadow: 0 0 3px rgba(255,255,255,0.8), 0 0 5px rgba(255,255,255,0.8); color: #000; opacity: 0.8; }
         .coach-scroll::-webkit-scrollbar { width: 4px; }
         .coach-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
       `}</style>
@@ -251,13 +268,10 @@ export default function ChessPage() {
                 <span className="chess-mono" style={{ fontSize: "1rem", fontWeight: isBlackActive ? 600 : 400 }}>{formatTime(blackTime)}</span>
               </div>
 
+              {/* Убрали картинку с контейнера доски */}
               <div style={{ 
                 width: "100%", aspectRatio: "1", display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(8,1fr)", 
-                border: `2px solid ${panelBorder}`, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.2)",
-                backgroundImage: theme.boardImageUrl ? `url("${theme.boardImageUrl}")` : "none",
-                backgroundSize: "cover", 
-                backgroundPosition: "center",
-                backgroundColor: theme.boardColors.dark
+                border: `2px solid ${panelBorder}`, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.2)"
               }}>
                 {RANKS.map((rank) => FILES.map((file) => {
                   const sq = `${file}${rank}` as Square
@@ -267,13 +281,13 @@ export default function ChessPage() {
                   const pieceImgUrl = piece ? getPieceUrl(piece.color, piece.type, theme) : null
 
                   return (
-                    <button key={sq} className="sq-btn" onClick={() => handleSquareClick(sq)} style={{ background: getSquareBg(file, rank, sq), transition: "background-color 0.2s ease" }}>
+                    <button key={sq} className="sq-btn" onClick={() => handleSquareClick(sq)} style={getSquareStyle(file, rank, sq)}>
                       {pieceImgUrl && (
                         <img src={pieceImgUrl} alt={`${piece?.color}${piece?.type}`} style={{ width: "86%", height: "86%", zIndex: 2, filter: theme.pieceFilter, transition: "filter 0.4s ease" }} />
                       )}
                       {isLegal && (piece ? <span className="ring-ind" /> : <span className="dot-ind" />)}
-                      {file === "a" && <span className="coord" style={{ top: 4, left: 5 }}>{rank}</span>}
-                      {rank === "1" && <span className="coord" style={{ bottom: 4, right: 5 }}>{file}</span>}
+                      {file === "a" && <span className="coord" style={{ top: 4, left: 5, color: theme.boardImageUrl ? (isLightSq ? "#4a3c31" : "#EBDDCB") : (isLightSq ? theme.boardColors.dark : theme.boardColors.light) }}>{rank}</span>}
+                      {rank === "1" && <span className="coord" style={{ bottom: 4, right: 5, color: theme.boardImageUrl ? (isLightSq ? "#4a3c31" : "#EBDDCB") : (isLightSq ? theme.boardColors.dark : theme.boardColors.light) }}>{file}</span>}
                     </button>
                   )
                 }))}
