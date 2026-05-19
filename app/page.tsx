@@ -108,10 +108,8 @@ function useLocalStorage<T>(key: string, defaultValue: T): [T, (v: T) => void] {
 }
 
 export default function ChessPage() {
-  // FIX: используем useRef для game чтобы избежать stale closure в боте
   const gameRef = useRef(new Chess())
   const [game, setGame] = useState(() => new Chess())
-
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null)
   const [legalMoves, setLegalMoves] = useState<Square[]>([])
   const [moveHistory, setMoveHistory] = useState<string[]>([])
@@ -132,7 +130,6 @@ export default function ChessPage() {
   )
   const [gameMode, setGameMode] = useState<"pvp" | "pve">("pvp")
   const [isBotThinking, setIsBotThinking] = useState(false)
-
   const coachRef = useRef<HTMLDivElement>(null)
 
   const theme = UNIFIED_THEMES[currentThemeKey] || UNIFIED_THEMES.amberOak
@@ -141,35 +138,24 @@ export default function ChessPage() {
   useEffect(() => {
     document.body.style.backgroundColor = theme.boardColors.pageBg
     document.body.style.transition = "background-color 0.4s ease"
-    return () => {
-      document.body.style.backgroundColor = ""
-    }
+    return () => { document.body.style.backgroundColor = "" }
   }, [theme.boardColors.pageBg])
 
   useEffect(() => {
     if (coachRef.current) coachRef.current.scrollTop = coachRef.current.scrollHeight
   }, [coachMessages])
 
-  // Таймер
   useEffect(() => {
     if (!isGameActive || game.isGameOver() || isPaused) return
     const interval = setInterval(() => {
       if (game.turn() === "w") {
         setWhiteTime((p) => {
-          if (p <= 1) {
-            setIsGameActive(false)
-            setGameResult({ winner: "Black", reason: "on time" })
-            return 0
-          }
+          if (p <= 1) { setIsGameActive(false); setGameResult({ winner: "Black", reason: "on time" }); return 0 }
           return p - 1
         })
       } else {
         setBlackTime((p) => {
-          if (p <= 1) {
-            setIsGameActive(false)
-            setGameResult({ winner: "White", reason: "on time" })
-            return 0
-          }
+          if (p <= 1) { setIsGameActive(false); setGameResult({ winner: "White", reason: "on time" }); return 0 }
           return p - 1
         })
       }
@@ -177,17 +163,10 @@ export default function ChessPage() {
     return () => clearInterval(interval)
   }, [isGameActive, game, isPaused])
 
-  // FIX: Ход бота — теперь используем gameRef чтобы не было stale closure
-  // и правильно обновляем состояние после хода
   useEffect(() => {
     if (
-      screen === "game" &&
-      gameMode === "pve" &&
-      isGameActive &&
-      !isPaused &&
-      !game.isGameOver() &&
-      game.turn() === "b" &&
-      !isBotThinking
+      screen === "game" && gameMode === "pve" && isGameActive &&
+      !isPaused && !game.isGameOver() && game.turn() === "b" && !isBotThinking
     ) {
       const fetchBotMove = async () => {
         setIsBotThinking(true)
@@ -197,57 +176,36 @@ export default function ChessPage() {
             `https://stockfish.online/api/s/v2.php?fen=${encodeURIComponent(currentGame.fen())}&depth=10`
           )
           const data = await res.json()
-
           if (data.success && data.bestmove) {
             const uci = data.bestmove.split(" ")[1]
             if (!uci || uci.length < 4) return
-
             const from = uci.substring(0, 2) as Square
             const to = uci.substring(2, 4) as Square
             const promotion = uci.length > 4 ? uci[4] : "q"
-
-            // FIX: клонируем игру перед ходом чтобы не мутировать текущий объект
             const nextGame = new Chess(currentGame.fen())
             const result = nextGame.move({ from, to, promotion })
-
             if (result) {
               gameRef.current = nextGame
               setGame(nextGame)
               setMoveHistory(nextGame.history())
               setLastMove({ from, to })
               addCoach("Stockfish played " + result.san)
-
-              if (nextGame.isCheckmate()) {
-                setGameResult({ winner: "White", reason: "checkmate" })
-                setIsGameActive(false)
-              } else if (nextGame.isDraw() || nextGame.isStalemate()) {
-                setGameResult({ winner: "Draw", reason: "draw" })
-                setIsGameActive(false)
-              }
+              if (nextGame.isCheckmate()) { setGameResult({ winner: "White", reason: "checkmate" }); setIsGameActive(false) }
+              else if (nextGame.isDraw() || nextGame.isStalemate()) { setGameResult({ winner: "Draw", reason: "draw" }); setIsGameActive(false) }
             }
           }
-        } catch (error) {
-          console.error("Bot error:", error)
-        }
+        } catch (error) { console.error("Bot error:", error) }
         setIsBotThinking(false)
       }
-
       const timer = setTimeout(fetchBotMove, 800)
       return () => clearTimeout(timer)
     }
   }, [game, gameMode, screen, isGameActive, isPaused, isBotThinking])
 
-  const addCoach = useCallback(
-    (msg: string) => setCoachMessages((prev) => [...prev, msg]),
-    []
-  )
+  const addCoach = useCallback((msg: string) => setCoachMessages((prev) => [...prev, msg]), [])
 
   const handleAskAI = async () => {
-    if (game.history().length === 0) {
-      addCoach("Make a move first to get AI analysis.")
-      return
-    }
-
+    if (game.history().length === 0) { addCoach("Make a move first to get AI analysis."); return }
     addCoach("AI Coach is analyzing...")
     try {
       const res = await fetch("/api/coach", {
@@ -256,87 +214,51 @@ export default function ChessPage() {
         body: JSON.stringify({ history: game.history() }),
       })
       const data = await res.json()
-
       setCoachMessages((prev) => {
         const newMsgs = [...prev]
         newMsgs[newMsgs.length - 1] = "— " + data.comment.replace(/\*/g, "")
         return newMsgs
       })
-    } catch (e) {
-      console.error(e)
-      addCoach("AI Coach is unavailable right now.")
-    }
+    } catch (e) { console.error(e); addCoach("AI Coach is unavailable right now.") }
   }
 
   const resetGame = useCallback(() => {
     const fresh = new Chess()
     gameRef.current = fresh
     setGame(fresh)
-    setSelectedSquare(null)
-    setLegalMoves([])
-    setMoveHistory([])
+    setSelectedSquare(null); setLegalMoves([]); setMoveHistory([])
     setCoachMessages(["Welcome. Make your first move and let the game begin."])
-    setWhiteTime(600)
-    setBlackTime(600)
-    setIsGameActive(false)
-    setIsPaused(false)
-    setLastMove(null)
-    setGameResult(null)
-    setIsBotThinking(false)
+    setWhiteTime(600); setBlackTime(600); setIsGameActive(false)
+    setIsPaused(false); setLastMove(null); setGameResult(null); setIsBotThinking(false)
   }, [])
 
   const handleSquareClick = useCallback(
     (square: Square) => {
-      if (
-        game.isGameOver() ||
-        isPaused ||
-        (gameMode === "pve" && game.turn() === "b") ||
-        isBotThinking
-      )
-        return
-
+      if (game.isGameOver() || isPaused || (gameMode === "pve" && game.turn() === "b") || isBotThinking) return
       const piece = game.get(square)
-
       if (piece && piece.color === game.turn()) {
         setSelectedSquare(square)
         setLegalMoves(game.moves({ square, verbose: true }).map((m) => m.to as Square))
         return
       }
-
       if (selectedSquare && legalMoves.includes(square)) {
         try {
-          // FIX: клонируем игру перед ходом
           const nextGame = new Chess(game.fen())
           const result = nextGame.move({ from: selectedSquare, to: square, promotion: "q" })
-
           if (result) {
             if (!isGameActive) setIsGameActive(true)
             setLastMove({ from: selectedSquare, to: square })
             setMoveHistory(nextGame.history())
             addCoach(`You played ${result.san}. Good move.`)
-
-            if (nextGame.isCheckmate()) {
-              setGameResult({
-                winner: nextGame.turn() === "w" ? "Black" : "White",
-                reason: "checkmate",
-              })
-              setIsGameActive(false)
-            } else if (nextGame.isStalemate()) {
-              setGameResult({ winner: "Draw", reason: "stalemate" })
-              setIsGameActive(false)
-            } else if (nextGame.isDraw()) {
-              setGameResult({ winner: "Draw", reason: "draw" })
-              setIsGameActive(false)
-            }
-
+            if (nextGame.isCheckmate()) { setGameResult({ winner: nextGame.turn() === "w" ? "Black" : "White", reason: "checkmate" }); setIsGameActive(false) }
+            else if (nextGame.isStalemate()) { setGameResult({ winner: "Draw", reason: "stalemate" }); setIsGameActive(false) }
+            else if (nextGame.isDraw()) { setGameResult({ winner: "Draw", reason: "draw" }); setIsGameActive(false) }
             gameRef.current = nextGame
             setGame(nextGame)
           }
         } catch {}
       }
-
-      setSelectedSquare(null)
-      setLegalMoves([])
+      setSelectedSquare(null); setLegalMoves([])
     },
     [game, selectedSquare, legalMoves, isGameActive, isPaused, gameMode, isBotThinking, addCoach]
   )
@@ -348,7 +270,6 @@ export default function ChessPage() {
     if (lastMove && (lastMove.from === sq || lastMove.to === sq)) {
       highlightColor = isLightSq ? theme.boardColors.lastLight : theme.boardColors.lastDark
     }
-
     if (theme.boardImageUrl) {
       return {
         backgroundImage: highlightColor
@@ -359,17 +280,14 @@ export default function ChessPage() {
         transition: "all 0.2s ease",
       }
     }
-
     return {
-      backgroundColor:
-        highlightColor || (isLightSq ? theme.boardColors.light : theme.boardColors.dark),
+      backgroundColor: highlightColor || (isLightSq ? theme.boardColors.light : theme.boardColors.dark),
       transition: "background-color 0.2s ease",
     }
   }
 
   const isWhiteActive = game.turn() === "w" && isGameActive && !isPaused
   const isBlackActive = game.turn() === "b" && isGameActive && !isPaused
-
   const text = isDark ? "#e5e5e5" : theme.coachUI.text
   const panelBg = theme.coachUI.bg
   const panelBorder = theme.coachUI.border
@@ -394,199 +312,39 @@ export default function ChessPage() {
           .style-opt:hover { background: rgba(0,0,0,0.03); }
           .style-opt.selected { background: ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}; }
         `}</style>
-
-        <div
-          style={{
-            minHeight: "100vh",
-            backgroundColor: theme.boardColors.pageBg,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "2rem",
-            color: text,
-            transition: "background-color 0.4s ease",
-          }}
-        >
-          <p
-            className="chess-mono"
-            style={{
-              fontSize: "0.6rem",
-              letterSpacing: "0.35em",
-              textTransform: "uppercase",
-              color: `${text}45`,
-              margin: "0 0 0.6rem 0",
-            }}
-          >
-            welcome to
-          </p>
-          <h1
-            className="chess-serif-display"
-            style={{
-              fontSize: "clamp(3rem, 10vw, 5rem)",
-              fontStyle: "italic",
-              margin: 0,
-              lineHeight: 1,
-              color: text,
-            }}
-          >
-            Chess
-          </h1>
-          <p
-            style={{
-              fontFamily: "'EB Garamond', serif",
-              fontSize: "1.05rem",
-              fontStyle: "italic",
-              color: `${text}50`,
-              margin: "0.6rem 0 3.5rem 0",
-            }}
-          >
-            choose your game
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.7rem",
-              alignItems: "center",
-              width: "100%",
-            }}
-          >
-            <button
-              className="menu-btn accent"
-              onClick={() => {
-                setGameMode("pvp")
-                setScreen("game")
-              }}
-            >
-              Play with Friend
-            </button>
-            <button
-              className="menu-btn accent"
-              onClick={() => {
-                setGameMode("pve")
-                setScreen("game")
-              }}
-            >
-              Play with AI
-            </button>
-            <button className="menu-btn" onClick={() => setSettingsOpen(true)}>
-              Settings
-            </button>
+        <div style={{ minHeight: "100vh", backgroundColor: theme.boardColors.pageBg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", color: text, transition: "background-color 0.4s ease" }}>
+          <p className="chess-mono" style={{ fontSize: "0.6rem", letterSpacing: "0.35em", textTransform: "uppercase", color: `${text}45`, margin: "0 0 0.6rem 0" }}>welcome to</p>
+          <h1 className="chess-serif-display" style={{ fontSize: "clamp(3rem, 10vw, 5rem)", fontStyle: "italic", margin: 0, lineHeight: 1, color: text }}>Chess</h1>
+          <p style={{ fontFamily: "'EB Garamond', serif", fontSize: "1.05rem", fontStyle: "italic", color: `${text}50`, margin: "0.6rem 0 3.5rem 0" }}>choose your game</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem", alignItems: "center", width: "100%" }}>
+            <button className="menu-btn accent" onClick={() => { setGameMode("pvp"); setScreen("game") }}>Play with Friend</button>
+            <button className="menu-btn accent" onClick={() => { setGameMode("pve"); setScreen("game") }}>Play with AI</button>
+            <button className="menu-btn" onClick={() => setSettingsOpen(true)}>Settings</button>
           </div>
-
           <div style={{ marginTop: "2.5rem", display: "flex", gap: "8px", alignItems: "center" }}>
             {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map((k) => (
-              <span
-                key={k}
-                title={UNIFIED_THEMES[k].name}
-                onClick={() => setCurrentThemeKey(k)}
-                style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: "50%",
-                  background: UNIFIED_THEMES[k].boardColors.dark,
-                  border: `2px solid ${currentThemeKey === k ? text : "transparent"}`,
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  display: "inline-block",
-                }}
-              />
+              <span key={k} title={UNIFIED_THEMES[k].name} onClick={() => setCurrentThemeKey(k)} style={{ width: 14, height: 14, borderRadius: "50%", background: UNIFIED_THEMES[k].boardColors.dark, border: `2px solid ${currentThemeKey === k ? text : "transparent"}`, cursor: "pointer", transition: "all 0.2s", display: "inline-block" }} />
             ))}
           </div>
-
-          <div
-            style={{
-              marginTop: "3rem",
-              display: "flex",
-              gap: "0.6rem",
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
+          <div style={{ marginTop: "3rem", display: "flex", gap: "0.6rem", flexWrap: "wrap", justifyContent: "center" }}>
             <button className="auth-btn">Sign in with GitHub</button>
             <button className="auth-btn">Sign in with Google</button>
           </div>
         </div>
-
         {settingsOpen && (
-          <div
-            className="settings-overlay"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setSettingsOpen(false)
-            }}
-          >
+          <div className="settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) setSettingsOpen(false) }}>
             <div className="settings-modal" style={{ color: text }}>
-              <div
-                style={{
-                  padding: "1.2rem 1.5rem",
-                  borderBottom: `1px solid ${panelBorder}`,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  className="chess-mono"
-                  style={{
-                    fontSize: "0.8rem",
-                    letterSpacing: "0.15em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Theme Gallery
-                </span>
-                <button
-                  onClick={() => setSettingsOpen(false)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "1.2rem",
-                    color: text,
-                  }}
-                >
-                  ✕
-                </button>
+              <div style={{ padding: "1.2rem 1.5rem", borderBottom: `1px solid ${panelBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span className="chess-mono" style={{ fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase" }}>Theme Gallery</span>
+                <button onClick={() => setSettingsOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: text }}>✕</button>
               </div>
               <div style={{ display: "flex", flexDirection: "column" }}>
                 {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map((key) => (
-                  <div
-                    key={key}
-                    className={`style-opt${currentThemeKey === key ? " selected" : ""}`}
-                    onClick={() => setCurrentThemeKey(key)}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span
-                        className="chess-mono"
-                        style={{
-                          fontSize: "0.75rem",
-                          letterSpacing: "0.1em",
-                          textTransform: "uppercase",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            background: currentThemeKey === key ? text : "transparent",
-                            border: `1px solid ${text}`,
-                          }}
-                        />
-                        {UNIFIED_THEMES[key].name}
-                      </span>
-                    </div>
+                  <div key={key} className={`style-opt${currentThemeKey === key ? " selected" : ""}`} onClick={() => setCurrentThemeKey(key)}>
+                    <span className="chess-mono" style={{ fontSize: "0.75rem", letterSpacing: "0.1em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: currentThemeKey === key ? text : "transparent", border: `1px solid ${text}` }} />
+                      {UNIFIED_THEMES[key].name}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -597,117 +355,45 @@ export default function ChessPage() {
     )
   }
 
-  // ── GAME SCREEN ────────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&family=DM+Serif+Display:ital@0;1&display=swap');
-
-        /* FIX: сброс и базовый box-sizing */
         .chess-root * { box-sizing: border-box; }
         .chess-root { font-family: 'EB Garamond', Georgia, serif; color: ${text}; transition: color 0.4s ease; }
         .chess-mono { font-family: 'DM Mono', monospace; }
         .chess-serif-display { font-family: 'DM Serif Display', serif; }
-
-        /* FIX: главный layout — больше не flexWrap, строгие размеры */
-        .game-layout {
-          display: flex;
-          flex-direction: row;
-          align-items: flex-start;
-          gap: 2rem;
-          width: 100%;
-          max-width: 960px;
-          margin: 0 auto;
-        }
-
-        /* FIX: колонка доски — фиксированная ширина, не растягивается */
-        .board-col {
-          flex: 0 0 auto;
-          width: min(560px, calc(100vw - 380px));
-          min-width: 280px;
-        }
-
-        /* FIX: колонка панели — фиксированная ширина 300px, не сжимается */
-        .panel-col {
-          flex: 0 0 300px;
-          width: 300px;
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          padding-top: 2.2rem; /* выравнивание с таймером чёрных */
-        }
-
-        /* Адаптив: на маленьких экранах складываем вертикально */
+        .game-layout { display: flex; flex-direction: row; align-items: flex-start; gap: 2rem; width: 100%; max-width: 960px; margin: 0 auto; }
+        .board-col { flex: 0 0 auto; width: min(560px, calc(100vw - 380px)); min-width: 280px; }
+        .panel-col { flex: 0 0 300px; width: 300px; display: flex; flex-direction: column; gap: 1rem; padding-top: 2.2rem; }
         @media (max-width: 720px) {
           .game-layout { flex-direction: column; align-items: center; }
-          .board-col { width: min(560px, 100vw - 2rem); }
-          .panel-col { flex: none; width: min(560px, 100vw - 2rem); flex-direction: row; flex-wrap: wrap; }
+          .board-col { width: min(560px, calc(100vw - 2rem)); }
+          .panel-col { flex: none; width: min(560px, calc(100vw - 2rem)); }
         }
-
         .menu-btn { display: block; width: 100%; max-width: 280px; font-family: 'DM Mono', monospace; font-size: 0.78rem; letter-spacing: 0.15em; text-transform: uppercase; background: none; border: 1px solid ${text}30; color: ${text}; padding: 0.9rem 2rem; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
         .menu-btn:hover { border-color: ${text}70; background: ${text}08; }
-
-        /* FIX: доска — строгий aspect-ratio через padding-top трюк */
-        .board-wrapper {
-          position: relative;
-          width: 100%;
-          padding-top: 100%;
-        }
-        .board-grid {
-          position: absolute;
-          inset: 0;
-          display: grid;
-          grid-template-columns: repeat(8, 1fr);
-          grid-template-rows: repeat(8, 1fr);
-          border: 2px solid ${panelBorder};
-        }
-
+        .board-wrapper { position: relative; width: 100%; padding-top: 100%; }
+        .board-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); border: 2px solid ${panelBorder}; }
         .sq-btn { position: relative; display: flex; align-items: center; justify-content: center; border: none; padding: 0; cursor: pointer; width: 100%; height: 100%; }
         .dot-ind { position: absolute; width: 24%; height: 24%; border-radius: 50%; background: ${isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)"}; pointer-events: none; z-index: 3; }
         .ring-ind { position: absolute; inset: 0; border: 4px solid ${theme.boardColors.selected}; pointer-events: none; z-index: 3; }
         .coord { position: absolute; font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 600; z-index: 1; pointer-events: none; opacity: 0.8; }
         .coach-scroll::-webkit-scrollbar { width: 4px; }
         .coach-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
-
         .settings-overlay { position: fixed; inset: 0; z-index: 1000; background: ${isDark ? "rgba(0,0,0,0.7)" : "rgba(26,25,22,0.3)"}; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
       `}</style>
 
-      <div
-        className="chess-root"
-        style={{
-          minHeight: "100vh",
-          backgroundColor: theme.boardColors.pageBg,
-          padding: "1.5rem 1rem",
-        }}
-      >
+      <div className="chess-root" style={{ minHeight: "100vh", backgroundColor: theme.boardColors.pageBg, padding: "1.5rem 1rem" }}>
         <div className="game-layout">
-          {/* ── Левая колонка: доска + таймеры ── */}
           <div className="board-col">
-            {/* Таймер чёрных */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "0.5rem 0.2rem",
-                fontSize: "0.9rem",
-              }}
-            >
-              <span
-                className="chess-mono"
-                style={{
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  opacity: isBlackActive ? 1 : 0.6,
-                }}
-              >
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0.2rem", fontSize: "0.9rem" }}>
+              <span className="chess-mono" style={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: isBlackActive ? 1 : 0.6 }}>
                 ● Black {isBotThinking && gameMode === "pve" ? "(thinking...)" : ""}
               </span>
-              <span className="chess-mono" style={{ fontSize: "1rem" }}>
-                {formatTime(blackTime)}
-              </span>
+              <span className="chess-mono" style={{ fontSize: "1rem" }}>{formatTime(blackTime)}</span>
             </div>
 
-            {/* FIX: доска через padding-top трюк — гарантированный квадрат */}
             <div className="board-wrapper">
               <div className="board-grid">
                 {RANKS.map((rank) =>
@@ -717,61 +403,12 @@ export default function ChessPage() {
                     const isLightSq = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
                     const isLegal = legalMoves.includes(sq)
                     const pieceImgUrl = piece ? getPieceUrl(piece.color, piece.type, theme) : null
-
                     return (
-                      <button
-                        key={sq}
-                        className="sq-btn"
-                        onClick={() => handleSquareClick(sq)}
-                        style={getSquareStyle(file, rank, sq)}
-                        disabled={isBotThinking}
-                      >
-                        {pieceImgUrl && (
-                          <img
-                            src={pieceImgUrl}
-                            alt="piece"
-                            style={{
-                              width: "86%",
-                              height: "86%",
-                              zIndex: 2,
-                              filter: theme.pieceFilter,
-                            }}
-                          />
-                        )}
-                        {isLegal &&
-                          (piece ? (
-                            <span className="ring-ind" />
-                          ) : (
-                            <span className="dot-ind" />
-                          ))}
-                        {file === "a" && (
-                          <span
-                            className="coord"
-                            style={{
-                              top: 4,
-                              left: 5,
-                              color: isLightSq
-                                ? theme.boardColors.dark
-                                : theme.boardColors.light,
-                            }}
-                          >
-                            {rank}
-                          </span>
-                        )}
-                        {rank === "1" && (
-                          <span
-                            className="coord"
-                            style={{
-                              bottom: 4,
-                              right: 5,
-                              color: isLightSq
-                                ? theme.boardColors.dark
-                                : theme.boardColors.light,
-                            }}
-                          >
-                            {file}
-                          </span>
-                        )}
+                      <button key={sq} className="sq-btn" onClick={() => handleSquareClick(sq)} style={getSquareStyle(file, rank, sq)} disabled={isBotThinking}>
+                        {pieceImgUrl && <img src={pieceImgUrl} alt="piece" style={{ width: "86%", height: "86%", zIndex: 2, filter: theme.pieceFilter }} />}
+                        {isLegal && (piece ? <span className="ring-ind" /> : <span className="dot-ind" />)}
+                        {file === "a" && <span className="coord" style={{ top: 4, left: 5, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{rank}</span>}
+                        {rank === "1" && <span className="coord" style={{ bottom: 4, right: 5, color: isLightSq ? theme.boardColors.dark : theme.boardColors.light }}>{file}</span>}
                       </button>
                     )
                   })
@@ -779,217 +416,48 @@ export default function ChessPage() {
               </div>
             </div>
 
-            {/* Таймер белых */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "0.5rem 0.2rem",
-                fontSize: "0.9rem",
-              }}
-            >
-              <span
-                className="chess-mono"
-                style={{
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  opacity: isWhiteActive ? 1 : 0.6,
-                }}
-              >
-                ○ White
-              </span>
-              <span className="chess-mono" style={{ fontSize: "1rem" }}>
-                {formatTime(whiteTime)}
-              </span>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0.2rem", fontSize: "0.9rem" }}>
+              <span className="chess-mono" style={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: isWhiteActive ? 1 : 0.6 }}>○ White</span>
+              <span className="chess-mono" style={{ fontSize: "1rem" }}>{formatTime(whiteTime)}</span>
             </div>
           </div>
 
-          {/* ── Правая колонка: панели ── */}
           <div className="panel-col">
-            {/* Settings кнопка */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                background: panelBg,
-                padding: "0.75rem",
-                border: `1px solid ${panelBorder}`,
-                borderRadius: "6px",
-              }}
-            >
-              <button
-                onClick={() => {
-                  setIsPaused(true)
-                  setSettingsOpen(true)
-                }}
-                className="chess-mono"
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: text,
-                  cursor: "pointer",
-                  opacity: 0.8,
-                }}
-              >
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", background: panelBg, padding: "0.75rem", border: `1px solid ${panelBorder}`, borderRadius: "6px" }}>
+              <button onClick={() => { setIsPaused(true); setSettingsOpen(true) }} className="chess-mono" style={{ background: "none", border: "none", color: text, cursor: "pointer", opacity: 0.8 }}>
                 <Settings size={22} />
               </button>
             </div>
 
-            {/* Status */}
-            <div
-              style={{
-                background: panelBg,
-                border: `1px solid ${panelBorder}`,
-                borderRadius: "6px",
-                padding: "1.2rem",
-              }}
-            >
-              <p
-                className="chess-mono"
-                style={{
-                  fontSize: "0.68rem",
-                  letterSpacing: "0.2em",
-                  textTransform: "uppercase",
-                  color: `${text}80`,
-                  margin: 0,
-                }}
-              >
-                Status
-              </p>
-              <p
-                className="chess-serif-display"
-                style={{ fontSize: "1.2rem", fontStyle: "italic", margin: "0.3rem 0 0 0" }}
-              >
-                {game.isCheckmate()
-                  ? `Checkmate — ${game.turn() === "w" ? "Black" : "White"} wins.`
-                  : game.isDraw()
-                  ? "A drawn position."
-                  : game.isCheck()
-                  ? `${game.turn() === "w" ? "White" : "Black"} in check.`
+            <div style={{ background: panelBg, border: `1px solid ${panelBorder}`, borderRadius: "6px", padding: "1.2rem" }}>
+              <p className="chess-mono" style={{ fontSize: "0.68rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}80`, margin: 0 }}>Status</p>
+              <p className="chess-serif-display" style={{ fontSize: "1.2rem", fontStyle: "italic", margin: "0.3rem 0 0 0" }}>
+                {game.isCheckmate() ? `Checkmate — ${game.turn() === "w" ? "Black" : "White"} wins.`
+                  : game.isDraw() ? "A drawn position."
+                  : game.isCheck() ? `${game.turn() === "w" ? "White" : "Black"} in check.`
                   : `${game.turn() === "w" ? "White" : "Black"} to move`}
               </p>
             </div>
 
-            {/* AI Coach */}
-            <div
-              style={{
-                background: panelBg,
-                border: `1px solid ${panelBorder}`,
-                borderRadius: "6px",
-                padding: "1.2rem",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "0.8rem",
-                  borderBottom: `1px solid ${panelBorder}`,
-                  paddingBottom: "0.5rem",
-                }}
-              >
-                <p
-                  className="chess-mono"
-                  style={{
-                    fontSize: "0.68rem",
-                    letterSpacing: "0.2em",
-                    textTransform: "uppercase",
-                    color: `${text}80`,
-                    margin: 0,
-                  }}
-                >
-                  AI Coach
-                </p>
-                <button
-                  onClick={handleAskAI}
-                  className="chess-mono"
-                  style={{
-                    fontSize: "0.6rem",
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    padding: "0.3rem 0.6rem",
-                    border: `1px solid ${text}`,
-                    background: "transparent",
-                    color: text,
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Ask AI
-                </button>
+            <div style={{ background: panelBg, border: `1px solid ${panelBorder}`, borderRadius: "6px", padding: "1.2rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem", borderBottom: `1px solid ${panelBorder}`, paddingBottom: "0.5rem" }}>
+                <p className="chess-mono" style={{ fontSize: "0.68rem", letterSpacing: "0.2em", textTransform: "uppercase", color: `${text}80`, margin: 0 }}>AI Coach</p>
+                <button onClick={handleAskAI} className="chess-mono" style={{ fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", padding: "0.3rem 0.6rem", border: `1px solid ${text}`, background: "transparent", color: text, borderRadius: "4px", cursor: "pointer" }}>Ask AI</button>
               </div>
-              <div
-                ref={coachRef}
-                className="coach-scroll"
-                style={{ maxHeight: 130, overflowY: "auto" }}
-              >
+              <div ref={coachRef} className="coach-scroll" style={{ maxHeight: 130, overflowY: "auto" }}>
                 {coachMessages.map((msg, i) => (
-                  <p
-                    key={i}
-                    className="chess-serif-display"
-                    style={{
-                      fontSize: "0.95rem",
-                      fontStyle: "italic",
-                      lineHeight: 1.5,
-                      margin: "0 0 0.5rem 0",
-                      color: i === coachMessages.length - 1 ? text : `${text}65`,
-                    }}
-                  >
-                    {msg}
-                  </p>
+                  <p key={i} className="chess-serif-display" style={{ fontSize: "0.95rem", fontStyle: "italic", lineHeight: 1.5, margin: "0 0 0.5rem 0", color: i === coachMessages.length - 1 ? text : `${text}65` }}>{msg}</p>
                 ))}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Settings overlay */}
         {settingsOpen && (
-          <div
-            className="settings-overlay"
-            onClick={() => {
-              setIsPaused(false)
-              setSettingsOpen(false)
-            }}
-          >
-            <div
-              style={{
-                background: theme.boardColors.pageBg,
-                padding: "2rem",
-                borderRadius: "8px",
-                border: `1px solid ${panelBorder}`,
-                width: "300px",
-                maxWidth: "90vw",
-                textAlign: "center",
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.75rem",
-                alignItems: "center",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                className="menu-btn"
-                onClick={() => {
-                  setIsPaused(false)
-                  setSettingsOpen(false)
-                }}
-              >
-                Resume Game
-              </button>
-              <button
-                className="menu-btn"
-                onClick={() => {
-                  resetGame()
-                  setIsPaused(false)
-                  setSettingsOpen(false)
-                  setScreen("menu")
-                }}
-              >
-                Exit to Menu
-              </button>
+          <div className="settings-overlay" onClick={() => { setIsPaused(false); setSettingsOpen(false) }}>
+            <div style={{ background: theme.boardColors.pageBg, padding: "2rem", borderRadius: "8px", border: `1px solid ${panelBorder}`, width: "300px", maxWidth: "90vw", textAlign: "center", display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
+              <button className="menu-btn" onClick={() => { setIsPaused(false); setSettingsOpen(false) }}>Resume Game</button>
+              <button className="menu-btn" onClick={() => { resetGame(); setIsPaused(false); setSettingsOpen(false); setScreen("menu") }}>Exit to Menu</button>
             </div>
           </div>
         )}
