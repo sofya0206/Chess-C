@@ -133,7 +133,6 @@ export default function ChessPage() {
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   
-  // Создаем чистый уникальный ключ для локальной памяти, чтобы сбросить старые серые пресеты
   const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v3", "amberOak")
   
   const coachRef = useRef<HTMLDivElement>(null)
@@ -160,6 +159,9 @@ export default function ChessPage() {
   }, [isGameActive, game, isPaused])
 
   const addCoach = useCallback((msg: string) => setCoachMessages(prev => [...prev, msg]), [])
+
+  // ВОТ ЭТА ФУНКЦИЯ БЫЛА ПОТЕРЯНА! ТЕПЕРЬ ОНА НА МЕСТЕ:
+  const handleHint = () => addCoach("— " + generateHint(game))
 
   const handleSquareClick = useCallback((square: Square) => {
     if (game.isGameOver() || isPaused) return
@@ -230,10 +232,8 @@ export default function ChessPage() {
           
           <div style={{ display: "flex", gap: "2.5rem", alignItems: "flex-start", flexWrap: "wrap", justifyContent: "center" }}>
             
-            {/* ИГРОВОЕ ПОЛЕ */}
             <div style={{ flex: "1 1 500px", maxWidth: "560px" }}>
               
-              {/* Верхний таймер (Black) */}
               <div style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0.2rem", fontSize: "0.9rem" }}>
                 <span className="chess-mono" style={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: isBlackActive ? 1 : 0.6, fontWeight: isBlackActive ? 600 : 400 }}>● Black</span>
                 <span className="chess-mono" style={{ fontSize: "1rem", fontWeight: isBlackActive ? 600 : 400 }}>{formatTime(blackTime)}</span>
@@ -260,14 +260,12 @@ export default function ChessPage() {
                 }))}
               </div>
 
-              {/* Нижний таймер (White) */}
               <div style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0.2rem", fontSize: "0.9rem" }}>
                 <span className="chess-mono" style={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: isWhiteActive ? 1 : 0.6, fontWeight: isWhiteActive ? 600 : 400 }}>○ White</span>
                 <span className="chess-mono" style={{ fontSize: "1rem", fontWeight: isWhiteActive ? 600 : 400 }}>{formatTime(whiteTime)}</span>
               </div>
             </div>
 
-            {/* БОКОВАЯ ПАНЕЛЬ ИНТЕРФЕЙСА */}
             <div style={{ width: 320, flexShrink: 0, display: "flex", flexDirection: "column", gap: "1.5rem", marginTop: "1.5rem" }}>
               
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: panelBg, padding: "0.75rem 1rem", border: `1px solid ${panelBorder}`, borderRadius: "6px" }}>
@@ -315,7 +313,6 @@ export default function ChessPage() {
           </div>
         </div>
 
-        {/* МЕНЮ ВЫБОРА ГАЛЕРЕИ ТЕМ */}
         {settingsOpen && (
           <div className="settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setIsPaused(false); setSettingsOpen(false) } }}>
             <div className="settings-modal" style={{ color: text }}>
