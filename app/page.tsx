@@ -9,37 +9,37 @@ const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
 const UNIFIED_THEMES = {
   arcticCobalt: {
     name: "The Arctic Cobalt Theme",
-    boardImageUrl: "", 
+    boardImageUrl: "/aluminium.png", // Загруженная текстура алюминия
     boardColors: {
-      light: "#8B9DA6",
-      dark: "#3C454B",
+      light: "#A3B8CC",
+      dark: "#4C5A66",
       pageBg: "#EAF4FC",
-      lastLight: "rgba(122,140,149,0.5)",
-      lastDark: "rgba(43,52,58,0.5)",
+      lastLight: "rgba(23,59,240,0.2)",
+      lastDark: "rgba(23,59,240,0.3)",
       selected: "rgba(23,59,240,0.5)", 
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(60,69,75,0.2)", text: "#1a1916" },
-    pieceFilter: "hue-rotate(180deg) brightness(1.2) drop-shadow(0 4px 4px rgba(23,59,240,0.2))",
-    pieceSetUrl: "/pieces/arctic/{color}{piece}.svg",
+    pieceFilter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
+    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg", 
   },
   amberOak: {
     name: "The Amber Oak Theme",
-    boardImageUrl: "https://www.transparenttextures.com/patterns/wood-pattern.png", // Бесшовная текстура дорогого дерева
+    boardImageUrl: "/wood.png", // Загруженная текстура дуба (цельная доска)
     boardColors: {
       light: "#EBDDCB",
       dark: "#614332",
       pageBg: "#FDF5E6",
-      lastLight: "rgba(219,205,187,0.7)",
-      lastDark: "rgba(80,50,33,0.7)",
-      selected: "rgba(214,176,57,0.7)", 
+      lastLight: "rgba(214,176,57,0.3)",
+      lastDark: "rgba(214,176,57,0.4)",
+      selected: "rgba(214,176,57,0.6)", 
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(97,67,50,0.2)", text: "#3d2b1f" },
     pieceFilter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
-    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg",
+    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg", 
   },
   neonDusk: {
     name: "The Neon Dusk Theme",
-    boardImageUrl: "", 
+    boardImageUrl: "", // Для неона оставляем чистую темную заливку
     boardColors: {
       light: "#2C3341",
       dark: "#1D222B",
@@ -49,23 +49,23 @@ const UNIFIED_THEMES = {
       selected: "rgba(0,240,255,0.3)", 
     },
     coachUI: { bg: "#1D222B", border: "rgba(255,255,255,0.1)", text: "#e5e5e5" },
-    pieceFilter: "drop-shadow(0 0 6px rgba(255,255,255,0.3))",
-    pieceSetUrl: "/pieces/neon/{color}{piece}.png",
+    pieceFilter: "invert(1) brightness(1.5) drop-shadow(0 0 4px #00F0FF)", 
+    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg", 
   },
   softSmoke: {
     name: "The Soft Smoke Theme",
-    boardImageUrl: "https://www.transparenttextures.com/patterns/white-marble.png", // Бесшовная текстура мрамора
+    boardImageUrl: "/marble.png", // Загруженная текстура мрамора
     boardColors: {
-      light: "#F2C9C9",
-      dark: "#8E9CA5",
+      light: "#E3C8C8",
+      dark: "#7E8E99",
       pageBg: "#DFE2E5",
-      lastLight: "rgba(225,184,184,0.6)",
-      lastDark: "rgba(125,139,148,0.6)",
+      lastLight: "rgba(237,121,121,0.3)",
+      lastDark: "rgba(237,121,121,0.4)",
       selected: "rgba(237,121,121,0.6)", 
     },
     coachUI: { bg: "#FFFFFF", border: "rgba(142,156,165,0.2)", text: "#4a555e" },
-    pieceFilter: "opacity(0.85) drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
-    pieceSetUrl: "/pieces/smoke/{color}{piece}.svg",
+    pieceFilter: "opacity(0.95) drop-shadow(0 2px 4px rgba(0,0,0,0.12))",
+    pieceSetUrl: "/pieces/amberOak/{color}{piece}.svg", 
   },
 } as const
 
@@ -137,7 +137,7 @@ export default function ChessPage() {
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   
-  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v5", "amberOak")
+  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v7", "amberOak")
   
   const coachRef = useRef<HTMLDivElement>(null)
   const usedPhrasesRef = useRef<Set<string>>(new Set())
@@ -195,14 +195,14 @@ export default function ChessPage() {
   const getSquareBg = (file: string, rank: string, sq: Square) => {
     const isLightSq = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
     
+    // Подсветка ходов (полупрозрачная, чтобы ложилась поверх картинки)
     if (selectedSquare === sq) return theme.boardColors.selected
     if (lastMove && (lastMove.from === sq || lastMove.to === sq)) return isLightSq ? theme.boardColors.lastLight : theme.boardColors.lastDark
     
-    if (theme.boardImageUrl) {
-      // D9 в конце цвета = 85% непрозрачности. Цвет плотный, но текстура мягко просвечивает.
-      return isLightSq ? `${theme.boardColors.light}D9` : `${theme.boardColors.dark}D9`
-    }
+    // Если мы используем картинку как доску, сами клетки должны стать прозрачными
+    if (theme.boardImageUrl) return "transparent"
     
+    // Обычная сплошная заливка (для темы Неон или если картинки нет)
     return isLightSq ? theme.boardColors.light : theme.boardColors.dark
   }
 
@@ -229,9 +229,9 @@ export default function ChessPage() {
         .style-opt.selected { background: ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}; }
         .swatch-circle { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); display: inline-block; }
         .sq-btn { position: relative; display: flex; align-items: center; justify-content: center; border: none; padding: 0; cursor: pointer; aspect-ratio: 1; }
-        .dot-ind { position: absolute; width: 24%; height: 24%; border-radius: 50%; background: ${isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.5)"}; pointer-events: none; z-index: 3; }
+        .dot-ind { position: absolute; width: 24%; height: 24%; border-radius: 50%; background: ${isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)"}; pointer-events: none; z-index: 3; }
         .ring-ind { position: absolute; inset: 0; border: 4px solid ${theme.boardColors.selected}; pointer-events: none; z-index: 3; }
-        .coord { position: absolute; font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 600; z-index: 1; pointer-events: none; text-shadow: 0 0 3px rgba(255,255,255,0.8), 0 0 5px rgba(255,255,255,0.8); color: #000; }
+        .coord { position: absolute; font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 600; z-index: 1; pointer-events: none; text-shadow: 0 0 3px rgba(255,255,255,0.8); color: #000; opacity: 0.7; }
         .coach-scroll::-webkit-scrollbar { width: 4px; }
         .coach-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
       `}</style>
@@ -251,8 +251,9 @@ export default function ChessPage() {
               <div style={{ 
                 width: "100%", aspectRatio: "1", display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(8,1fr)", 
                 border: `2px solid ${panelBorder}`, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.2)",
-                backgroundImage: theme.boardImageUrl ? `url(${theme.boardImageUrl})` : "none",
-                backgroundRepeat: "repeat", /* Теперь текстура правильно замостит доску без искажений */
+                backgroundImage: theme.boardImageUrl ? `url("${theme.boardImageUrl}")` : "none",
+                backgroundSize: "cover", /* Заполняет всю область */
+                backgroundPosition: "center",
                 backgroundColor: theme.boardColors.dark
               }}>
                 {RANKS.map((rank) => FILES.map((file) => {
