@@ -5,13 +5,10 @@ import { Chess, Square } from "chess.js"
 import { Settings, LogOut, User, ChevronRight, X } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
 
-// ─── Supabase ─────────────────────────────────────────────────────────────────
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
-)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
+const supabase = createClient(supabaseUrl, supabaseKey)
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 type UnifiedThemeKey = keyof typeof UNIFIED_THEMES
 type GameResult = { winner: "White" | "Black" | "Draw"; reason: string }
 type Screen = "menu" | "game" | "profile"
@@ -24,7 +21,6 @@ type GameRecord = {
   created_at?: string
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
 const SKAK = "https://raw.githubusercontent.com/MuTsunTsai/skak-svg/main/svg/{color}{piece}.svg"
@@ -64,7 +60,6 @@ const UNIFIED_THEMES = {
   },
 } as const
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const getPieceUrl = (color: string, piece: string, theme: (typeof UNIFIED_THEMES)[UnifiedThemeKey]) =>
   theme.pieceSetUrl.replace("{color}", color).replace("{piece}", piece)
 
@@ -77,15 +72,13 @@ function useLocalStorage<T>(key: string, def: T): [T, (v: T) => void] {
   return [value, set]
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function ChessPage() {
-  // Auth state
   const [user, setUser] = useState<any>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [gameHistory, setGameHistory] = useState<GameRecord[]>([])
   const [profileLoading, setProfileLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  // Game state
   const gameRef = useRef(new Chess())
   const [game, setGame] = useState(() => new Chess())
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null)
@@ -100,7 +93,7 @@ export default function ChessPage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [gameResult, setGameResult] = useState<GameResult | null>(null)
   const [screen, setScreen] = useState<Screen>("menu")
-  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_theme_v14", "amberOak")
+  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_theme_v15", "amberOak")
   const [gameMode, setGameMode] = useState<"pvp" | "pve">("pvp")
   const [isBotThinking, setIsBotThinking] = useState(false)
   const [gameStartTime, setGameStartTime] = useState(0)
@@ -112,8 +105,8 @@ export default function ChessPage() {
   const bg = theme.coachUI.bg
   const br = theme.coachUI.border
 
-  // ── Auth ──
   useEffect(() => {
+    setMounted(true)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setAuthLoading(false)
@@ -125,15 +118,15 @@ export default function ChessPage() {
   }, [])
 
   useEffect(() => {
+    if (!mounted) return
     document.body.style.backgroundColor = theme.boardColors.pageBg
     return () => { document.body.style.backgroundColor = "" }
-  }, [theme.boardColors.pageBg])
+  }, [theme.boardColors.pageBg, mounted])
 
   useEffect(() => {
     if (coachRef.current) coachRef.current.scrollTop = coachRef.current.scrollHeight
   }, [coachMessages])
 
-  // ── Timer ──
   useEffect(() => {
     if (!isGameActive || game.isGameOver() || isPaused) return
     const id = setInterval(() => {
@@ -146,7 +139,6 @@ export default function ChessPage() {
     return () => clearInterval(id)
   }, [isGameActive, game, isPaused])
 
-  // ── Bot ──
   useEffect(() => {
     if (screen !== "game" || gameMode !== "pve" || !isGameActive || isPaused || game.isGameOver() || game.turn() !== "b" || isBotThinking) return
     const go = async () => {
@@ -177,22 +169,18 @@ export default function ChessPage() {
     return () => clearTimeout(t)
   }, [game, gameMode, screen, isGameActive, isPaused, isBotThinking])
 
-  // ── End game + save ──
   const endGame = useCallback(async (result: GameResult, movesCount: number) => {
     setGameResult(result); setIsGameActive(false)
     if (!user) return
     const duration = Math.floor((Date.now() - gameStartTime) / 1000)
-    const dbResult: "win" | "loss" | "draw" =
-      result.winner === "Draw" ? "draw" : result.winner === "White" ? "win" : "loss"
-    const { error } = await supabase.from("game_history").insert({
+    const dbResult: "win" | "loss" | "draw" = result.winner === "Draw" ? "draw" : result.winner === "White" ? "win" : "loss"
+    await supabase.from("game_history").insert({
       user_id: user.id, result: dbResult,
       opponent: gameMode === "pve" ? "ai" : "human",
       moves_count: movesCount, duration_seconds: Math.max(duration, 0),
     })
-    if (error) console.error("Save error:", error)
   }, [user, gameStartTime, gameMode])
 
-  // ── Profile ──
   const loadProfile = useCallback(async () => {
     if (!user) return
     setProfileLoading(true)
@@ -203,25 +191,22 @@ export default function ChessPage() {
 
   useEffect(() => { if (screen === "profile") loadProfile() }, [screen, loadProfile])
 
-  // ── Auth actions ──
   const signInGitHub = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    await supabase.auth.signInWithOAuth({
       provider: "github",
       options: { redirectTo: "https://chess-c-rho.vercel.app" }
     })
-    if (error) console.error(error)
   }
+
   const signInGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: "https://chess-c-rho.vercel.app" }
     })
-    if (error) console.error(error)
   }
 
   const signOut = async () => { await supabase.auth.signOut(); setUser(null) }
 
-  // ── Game helpers ──
   const addCoach = useCallback((msg: string) => setCoachMessages(p => [...p, msg]), [])
 
   const handleAskAI = async () => {
@@ -285,256 +270,210 @@ export default function ChessPage() {
     losses: gameHistory.filter(g => g.result === "loss").length,
   }
   const winRate = stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0
-
   const isWA = game.turn() === "w" && isGameActive && !isPaused
   const isBA = game.turn() === "b" && isGameActive && !isPaused
 
-  // ─── Shared CSS ───────────────────────────────────────────────────────────
-  const BASE_CSS = `
-    @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&family=DM+Serif+Display:ital@0;1&display=swap');
+  if (!mounted) return <div style={{minHeight:"100vh",background:"#FDF5E6"}}/>
+
+  const FONTS = "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@300;400&family=DM+Serif+Display:ital@0;1&display=swap"
+
+  const BASE = `
+    @import url('${FONTS}');
     *{box-sizing:border-box;margin:0;padding:0;}
     .fm{font-family:'DM Mono',monospace;}
     .fs{font-family:'DM Serif Display',serif;}
     .fb{font-family:'EB Garamond',serif;}
-    .overlay{position:fixed;inset:0;z-index:100;background:${isDark ? "rgba(0,0,0,.7)" : "rgba(26,25,22,.3)"};backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;}
-    .modal{background:${theme.boardColors.pageBg};border:1px solid ${br};width:360px;max-width:92vw;border-radius:6px;overflow:hidden;box-shadow:0 32px 64px -16px rgba(0,0,0,.2);}
-    .modal-hd{padding:1.1rem 1.4rem;border-bottom:1px solid ${br};display:flex;justify-content:space-between;align-items:center;}
-    .t-opt{padding:.9rem 1.4rem;cursor:pointer;border-bottom:1px solid ${br};transition:background .15s;display:flex;align-items:center;gap:.75rem;}
-    .t-opt:last-child{border-bottom:none;}
-    .t-opt:hover{background:${tx}06;}
   `
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // MENU SCREEN
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (screen === "menu") {
-    return (
-      <>
-        <style>{BASE_CSS + `
-          .root{min-height:100vh;background:${theme.boardColors.pageBg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;color:${tx};transition:background .4s;}
-          .mbtn{display:block;width:100%;max-width:260px;font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;background:none;border:1px solid ${tx}28;color:${tx};padding:.85rem 1.5rem;border-radius:3px;cursor:pointer;transition:all .2s;text-align:center;}
-          .mbtn:hover{border-color:${tx}60;background:${tx}06;}
-          .mbtn.hi{border-color:${tx}50;}
-          .abtn{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid ${tx}1e;color:${tx}70;padding:.65rem 1rem;border-radius:3px;cursor:pointer;transition:all .2s;margin-bottom:.45rem;}
-          .abtn:hover{border-color:${tx}48;color:${tx};}
-          .ucard{display:flex;align-items:center;gap:.75rem;padding:.85rem 1rem;border:1px solid ${tx}18;border-radius:3px;cursor:pointer;transition:all .2s;width:100%;}
-          .ucard:hover{border-color:${tx}42;}
-        `}</style>
-
-        <div className="root">
-          <p className="fm" style={{fontSize:".58rem",letterSpacing:".4em",textTransform:"uppercase",opacity:.32,marginBottom:".5rem"}}>welcome to</p>
-          <h1 className="fs" style={{fontSize:"clamp(3.5rem,12vw,6rem)",fontStyle:"italic",lineHeight:1}}>Chess</h1>
-          <p className="fb" style={{fontSize:"1rem",fontStyle:"italic",opacity:.38,marginTop:".4rem",marginBottom:"3rem"}}>choose your game</p>
-
-          <div style={{display:"flex",flexDirection:"column",gap:".6rem",alignItems:"center",width:"100%"}}>
-            <button className="mbtn hi" onClick={()=>{setGameMode("pvp");resetGame();setScreen("game")}}>Play with Friend</button>
-            <button className="mbtn hi" onClick={()=>{setGameMode("pve");resetGame();setScreen("game")}}>Play with AI</button>
-            <button className="mbtn" onClick={()=>setSettingsOpen(true)}>Settings</button>
+  if (screen === "menu") return (
+    <>
+      <style>{BASE + `
+        .root{min-height:100vh;background:${theme.boardColors.pageBg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;color:${tx};}
+        .mbtn{display:block;width:100%;max-width:260px;font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;background:none;border:1px solid ${tx}28;color:${tx};padding:.85rem 1.5rem;border-radius:3px;cursor:pointer;transition:all .2s;text-align:center;}
+        .mbtn:hover{border-color:${tx}60;background:${tx}06;}
+        .mbtn.hi{border-color:${tx}50;}
+        .abtn{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid ${tx}1e;color:${tx}70;padding:.65rem 1rem;border-radius:3px;cursor:pointer;transition:all .2s;margin-bottom:.45rem;}
+        .abtn:hover{border-color:${tx}48;color:${tx};}
+        .ucard{display:flex;align-items:center;gap:.75rem;padding:.85rem 1rem;border:1px solid ${tx}18;border-radius:3px;cursor:pointer;transition:all .2s;width:100%;}
+        .ucard:hover{border-color:${tx}42;}
+        .ov{position:fixed;inset:0;z-index:100;background:rgba(26,25,22,.3);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;}
+        .mod{background:${theme.boardColors.pageBg};border:1px solid ${br};width:360px;max-width:92vw;border-radius:6px;overflow:hidden;}
+        .mod-hd{padding:1.1rem 1.4rem;border-bottom:1px solid ${br};display:flex;justify-content:space-between;align-items:center;}
+        .topt{padding:.9rem 1.4rem;cursor:pointer;border-bottom:1px solid ${br};display:flex;align-items:center;gap:.75rem;transition:background .15s;}
+        .topt:last-child{border-bottom:none;}
+        .topt:hover{background:${tx}06;}
+      `}</style>
+      <div className="root">
+        <p className="fm" style={{fontSize:".58rem",letterSpacing:".4em",textTransform:"uppercase",opacity:.32,marginBottom:".5rem"}}>welcome to</p>
+        <h1 className="fs" style={{fontSize:"clamp(3.5rem,12vw,6rem)",fontStyle:"italic",lineHeight:1,color:tx}}>Chess</h1>
+        <p className="fb" style={{fontSize:"1rem",fontStyle:"italic",opacity:.38,marginTop:".4rem",marginBottom:"3rem"}}>choose your game</p>
+        <div style={{display:"flex",flexDirection:"column",gap:".6rem",alignItems:"center",width:"100%"}}>
+          <button className="mbtn hi" onClick={()=>{setGameMode("pvp");resetGame();setScreen("game")}}>Play with Friend</button>
+          <button className="mbtn hi" onClick={()=>{setGameMode("pve");resetGame();setScreen("game")}}>Play with AI</button>
+          <button className="mbtn" onClick={()=>setSettingsOpen(true)}>Settings</button>
+        </div>
+        <div style={{display:"flex",gap:"8px",marginTop:"2.5rem"}}>
+          {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map(k=>(
+            <span key={k} onClick={()=>setCurrentThemeKey(k)} style={{width:13,height:13,borderRadius:"50%",background:UNIFIED_THEMES[k].boardColors.dark,border:`2px solid ${currentThemeKey===k?tx:"transparent"}`,cursor:"pointer",display:"inline-block"}}/>
+          ))}
+        </div>
+        <div style={{marginTop:"3rem",width:"100%",maxWidth:"260px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:".75rem",marginBottom:"1rem"}}>
+            <div style={{flex:1,height:"1px",background:`${tx}14`}}/>
+            <span className="fm" style={{fontSize:".56rem",letterSpacing:".2em",textTransform:"uppercase",opacity:.32}}>
+              {authLoading?"...":user?"account":"sign in"}
+            </span>
+            <div style={{flex:1,height:"1px",background:`${tx}14`}}/>
           </div>
-
-          <div style={{display:"flex",gap:"8px",alignItems:"center",marginTop:"2.5rem"}}>
-            {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map(k=>(
-              <span key={k} title={UNIFIED_THEMES[k].name} onClick={()=>setCurrentThemeKey(k)}
-                style={{width:13,height:13,borderRadius:"50%",background:UNIFIED_THEMES[k].boardColors.dark,border:`2px solid ${currentThemeKey===k?tx:"transparent"}`,cursor:"pointer",transition:"all .2s",display:"inline-block"}}/>
+          {authLoading ? (
+            <div style={{textAlign:"center",opacity:.3,fontFamily:"'DM Mono',monospace",fontSize:".65rem"}}>loading...</div>
+          ) : user ? (
+            <>
+              <div className="ucard" onClick={()=>setScreen("profile")}>
+                <div style={{width:28,height:28,borderRadius:"50%",background:`${tx}10`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+                  {user.user_metadata?.avatar_url ? <img src={user.user_metadata.avatar_url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <User size={14} style={{opacity:.45}}/>}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div className="fm" style={{fontSize:".68rem",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    {user.user_metadata?.full_name||user.user_metadata?.user_name||user.email?.split("@")[0]}
+                  </div>
+                  <div className="fm" style={{fontSize:".54rem",opacity:.32,marginTop:".15rem"}}>View profile →</div>
+                </div>
+                <ChevronRight size={14} style={{opacity:.22}}/>
+              </div>
+              <button className="abtn" style={{marginTop:".4rem"}} onClick={signOut}><LogOut size={12}/> Sign out</button>
+            </>
+          ) : (
+            <>
+              <button className="abtn" onClick={signInGitHub}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+                Continue with GitHub
+              </button>
+              <button className="abtn" onClick={signInGoogle}>
+                <svg width="14" height="14" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                Continue with Google
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      {settingsOpen && (
+        <div className="ov" onClick={()=>setSettingsOpen(false)}>
+          <div className="mod" onClick={e=>e.stopPropagation()} style={{color:tx}}>
+            <div className="mod-hd">
+              <span className="fm" style={{fontSize:".72rem",letterSpacing:".18em",textTransform:"uppercase",opacity:.5}}>Theme Gallery</span>
+              <button onClick={()=>setSettingsOpen(false)} style={{background:"none",border:"none",cursor:"pointer",color:tx,opacity:.38,display:"flex"}}><X size={16}/></button>
+            </div>
+            {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map(key=>(
+              <div key={key} className="topt" onClick={()=>{setCurrentThemeKey(key);setSettingsOpen(false)}}>
+                <span style={{width:9,height:9,borderRadius:"50%",background:currentThemeKey===key?tx:"transparent",border:`1px solid ${tx}50`,display:"inline-block",flexShrink:0}}/>
+                <span className="fm" style={{fontSize:".72rem",letterSpacing:".1em",textTransform:"uppercase"}}>{UNIFIED_THEMES[key].name}</span>
+              </div>
             ))}
           </div>
-
-          {/* Auth section */}
-          <div style={{marginTop:"3rem",width:"100%",maxWidth:"260px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:".75rem",marginBottom:"1rem"}}>
-              <div style={{flex:1,height:"1px",background:`${tx}14`}}/>
-              <span className="fm" style={{fontSize:".56rem",letterSpacing:".2em",textTransform:"uppercase",opacity:.32}}>
-                {authLoading ? "..." : user ? "account" : "sign in"}
-              </span>
-              <div style={{flex:1,height:"1px",background:`${tx}14`}}/>
-            </div>
-
-            {authLoading ? (
-              <div style={{textAlign:"center",opacity:.3,fontFamily:"'DM Mono',monospace",fontSize:".65rem"}}>loading...</div>
-            ) : user ? (
-              <>
-                <div className="ucard" onClick={()=>setScreen("profile")}>
-                  <div style={{width:28,height:28,borderRadius:"50%",background:`${tx}10`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
-                    {user.user_metadata?.avatar_url
-                      ? <img src={user.user_metadata.avatar_url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                      : <User size={14} style={{opacity:.45}}/>}
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div className="fm" style={{fontSize:".68rem",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                      {user.user_metadata?.full_name || user.user_metadata?.user_name || user.email?.split("@")[0]}
-                    </div>
-                    <div className="fm" style={{fontSize:".54rem",opacity:.32,marginTop:".15rem"}}>View profile →</div>
-                  </div>
-                  <ChevronRight size={14} style={{opacity:.22}}/>
-                </div>
-                <button className="abtn" style={{marginTop:".4rem"}} onClick={signOut}>
-                  <LogOut size={12}/> Sign out
-                </button>
-              </>
-            ) : (
-              <>
-                <button className="abtn" onClick={signInGitHub}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-                  Continue with GitHub
-                </button>
-                <button className="abtn" onClick={signInGoogle}>
-                  <svg width="14" height="14" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                  Continue with Google
-                </button>
-              </>
-            )}
-          </div>
         </div>
+      )}
+    </>
+  )
 
-        {settingsOpen && (
-          <div className="overlay" onClick={()=>setSettingsOpen(false)}>
-            <div className="modal" onClick={e=>e.stopPropagation()} style={{color:tx}}>
-              <div className="modal-hd">
-                <span className="fm" style={{fontSize:".72rem",letterSpacing:".18em",textTransform:"uppercase",opacity:.5}}>Theme Gallery</span>
-                <button onClick={()=>setSettingsOpen(false)} style={{background:"none",border:"none",cursor:"pointer",color:tx,opacity:.38,display:"flex"}}><X size={16}/></button>
-              </div>
-              {(Object.keys(UNIFIED_THEMES) as UnifiedThemeKey[]).map(key=>(
-                <div key={key} className="t-opt" onClick={()=>{setCurrentThemeKey(key);setSettingsOpen(false)}}>
-                  <span style={{width:9,height:9,borderRadius:"50%",background:currentThemeKey===key?tx:"transparent",border:`1px solid ${tx}50`,display:"inline-block",flexShrink:0}}/>
-                  <span className="fm" style={{fontSize:".72rem",letterSpacing:".1em",textTransform:"uppercase"}}>{UNIFIED_THEMES[key].name}</span>
-                </div>
-              ))}
+  if (screen === "profile") return (
+    <>
+      <style>{BASE + `
+        .pr{min-height:100vh;background:${theme.boardColors.pageBg};color:${tx};padding:2rem 1rem;}
+        .pr-in{max-width:500px;margin:0 auto;}
+        .back{font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;background:none;border:none;color:${tx}50;cursor:pointer;padding:0;margin-bottom:2.5rem;transition:color .2s;}
+        .back:hover{color:${tx};}
+        .sg{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;border:1px solid ${tx}12;border-radius:4px;overflow:hidden;margin-bottom:1.5rem;}
+        .sc{padding:1.2rem .5rem;text-align:center;background:${bg};}
+        .pbox{background:${bg};border:1px solid ${br};border-radius:4px;overflow:hidden;margin-bottom:1.5rem;}
+        .gr{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;border-bottom:1px solid ${tx}08;}
+        .gr:last-child{border-bottom:none;}
+        .sob{display:flex;align-items:center;gap:.5rem;font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid ${tx}18;color:${tx}50;padding:.65rem 1rem;border-radius:3px;cursor:pointer;transition:all .2s;}
+        .sob:hover{border-color:${tx}40;color:${tx};}
+      `}</style>
+      <div className="pr">
+        <div className="pr-in">
+          <button className="back" onClick={()=>setScreen("menu")}>← Back to menu</button>
+          <div style={{display:"flex",alignItems:"center",gap:"1rem",marginBottom:"2.5rem"}}>
+            <div style={{width:52,height:52,borderRadius:"50%",background:`${tx}10`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",border:`1px solid ${tx}14`,flexShrink:0}}>
+              {user?.user_metadata?.avatar_url ? <img src={user.user_metadata.avatar_url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <User size={22} style={{opacity:.32}}/>}
+            </div>
+            <div>
+              <div className="fs" style={{fontSize:"1.5rem",fontStyle:"italic"}}>{user?.user_metadata?.full_name||user?.user_metadata?.user_name||user?.email?.split("@")[0]||"Player"}</div>
+              <div className="fm" style={{fontSize:".6rem",opacity:.32,marginTop:".2rem",textTransform:"uppercase"}}>{user?.email}</div>
             </div>
           </div>
-        )}
-      </>
-    )
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROFILE SCREEN
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (screen === "profile") {
-    return (
-      <>
-        <style>{BASE_CSS + `
-          .pr{min-height:100vh;background:${theme.boardColors.pageBg};color:${tx};padding:2rem 1rem;}
-          .pr-in{max-width:500px;margin:0 auto;}
-          .back{font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;background:none;border:none;color:${tx}50;cursor:pointer;padding:0;margin-bottom:2.5rem;transition:color .2s;}
-          .back:hover{color:${tx};}
-          .sg{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;border:1px solid ${tx}12;border-radius:4px;overflow:hidden;margin-bottom:1.5rem;}
-          .sc{padding:1.2rem .5rem;text-align:center;background:${bg};}
-          .pb{background:${bg};border:1px solid ${br};border-radius:4px;overflow:hidden;margin-bottom:1.5rem;}
-          .gr{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;border-bottom:1px solid ${tx}08;}
-          .gr:last-child{border-bottom:none;}
-          .sob{display:flex;align-items:center;gap:.5rem;font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid ${tx}18;color:${tx}50;padding:.65rem 1rem;border-radius:3px;cursor:pointer;transition:all .2s;}
-          .sob:hover{border-color:${tx}40;color:${tx};}
-        `}</style>
-        <div className="pr">
-          <div className="pr-in">
-            <button className="back" onClick={()=>setScreen("menu")}>← Back to menu</button>
-
-            <div style={{display:"flex",alignItems:"center",gap:"1rem",marginBottom:"2.5rem"}}>
-              <div style={{width:52,height:52,borderRadius:"50%",background:`${tx}10`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",border:`1px solid ${tx}14`,flexShrink:0}}>
-                {user?.user_metadata?.avatar_url
-                  ? <img src={user.user_metadata.avatar_url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                  : <User size={22} style={{opacity:.32}}/>}
+          <p className="fm" style={{fontSize:".6rem",letterSpacing:".2em",textTransform:"uppercase",opacity:.35,marginBottom:".75rem"}}>Statistics</p>
+          <div className="sg">
+            {([["Games",stats.total],["Wins",stats.wins],["Losses",stats.losses],["Win rate",`${winRate}%`]] as [string,any][]).map(([lbl,val])=>(
+              <div key={lbl} className="sc">
+                <div className="fs" style={{fontSize:"1.8rem",fontStyle:"italic",lineHeight:1,color:tx}}>{val}</div>
+                <div className="fm" style={{fontSize:".5rem",letterSpacing:".16em",textTransform:"uppercase",opacity:.35,marginTop:".3rem"}}>{lbl}</div>
               </div>
-              <div>
-                <div className="fs" style={{fontSize:"1.5rem",fontStyle:"italic"}}>
-                  {user?.user_metadata?.full_name || user?.user_metadata?.user_name || user?.email?.split("@")[0] || "Player"}
-                </div>
-                <div className="fm" style={{fontSize:".6rem",letterSpacing:".1em",opacity:.32,marginTop:".2rem",textTransform:"uppercase"}}>{user?.email}</div>
-              </div>
-            </div>
-
-            <p className="fm" style={{fontSize:".6rem",letterSpacing:".2em",textTransform:"uppercase",opacity:.35,marginBottom:".75rem"}}>Statistics</p>
-            <div className="sg">
-              {([["Games",stats.total],["Wins",stats.wins],["Losses",stats.losses],["Win rate",`${winRate}%`]] as [string,any][]).map(([lbl,val])=>(
-                <div key={lbl} className="sc">
-                  <div className="fs" style={{fontSize:"1.8rem",fontStyle:"italic",lineHeight:1,color:tx}}>{val}</div>
-                  <div className="fm" style={{fontSize:".5rem",letterSpacing:".16em",textTransform:"uppercase",opacity:.35,marginTop:".3rem"}}>{lbl}</div>
-                </div>
-              ))}
-            </div>
-
-            <p className="fm" style={{fontSize:".6rem",letterSpacing:".2em",textTransform:"uppercase",opacity:.35,marginBottom:".75rem"}}>Recent games</p>
-            <div className="pb">
-              {profileLoading ? (
-                <div style={{padding:"2rem",textAlign:"center",fontFamily:"'DM Mono',monospace",fontSize:".65rem",opacity:.32}}>loading...</div>
-              ) : gameHistory.length === 0 ? (
-                <div style={{padding:"2rem",textAlign:"center",fontFamily:"'EB Garamond',serif",fontStyle:"italic",opacity:.35}}>No games yet. Play your first!</div>
-              ) : gameHistory.map((g,i)=>(
-                <div key={g.id||i} className="gr">
-                  <div style={{width:6,height:6,borderRadius:"50%",flexShrink:0,background:g.result==="win"?"#4ade80":g.result==="loss"?"#f87171":`${tx}32`}}/>
-                  <div style={{flex:1}}>
-                    <div className="fm" style={{fontSize:".68rem",textTransform:"capitalize"}}>
-                      {g.result} vs {g.opponent==="ai"?"Stockfish AI":"Human"}
-                    </div>
-                    <div className="fm" style={{fontSize:".54rem",opacity:.32,marginTop:".2rem"}}>
-                      {g.moves_count} moves · {fmt(g.duration_seconds)}
-                      {g.created_at&&` · ${new Date(g.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`}
-                    </div>
-                  </div>
-                  <span className="fm" style={{fontSize:".6rem",opacity:.25,textTransform:"uppercase"}}>
-                    {g.result==="win"?"W":g.result==="loss"?"L":"D"}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <button className="sob" onClick={signOut}><LogOut size={13}/> Sign out</button>
+            ))}
           </div>
+          <p className="fm" style={{fontSize:".6rem",letterSpacing:".2em",textTransform:"uppercase",opacity:.35,marginBottom:".75rem"}}>Recent games</p>
+          <div className="pbox">
+            {profileLoading ? <div style={{padding:"2rem",textAlign:"center",fontFamily:"'DM Mono',monospace",fontSize:".65rem",opacity:.32}}>loading...</div>
+            : gameHistory.length===0 ? <div style={{padding:"2rem",textAlign:"center",fontFamily:"'EB Garamond',serif",fontStyle:"italic",opacity:.35}}>No games yet. Play your first!</div>
+            : gameHistory.map((g,i)=>(
+              <div key={g.id||i} className="gr">
+                <div style={{width:6,height:6,borderRadius:"50%",flexShrink:0,background:g.result==="win"?"#4ade80":g.result==="loss"?"#f87171":`${tx}32`}}/>
+                <div style={{flex:1}}>
+                  <div className="fm" style={{fontSize:".68rem",textTransform:"capitalize"}}>{g.result} vs {g.opponent==="ai"?"Stockfish AI":"Human"}</div>
+                  <div className="fm" style={{fontSize:".54rem",opacity:.32,marginTop:".2rem"}}>{g.moves_count} moves · {fmt(g.duration_seconds)}{g.created_at&&` · ${new Date(g.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`}</div>
+                </div>
+                <span className="fm" style={{fontSize:".6rem",opacity:.25,textTransform:"uppercase"}}>{g.result==="win"?"W":g.result==="loss"?"L":"D"}</span>
+              </div>
+            ))}
+          </div>
+          <button className="sob" onClick={signOut}><LogOut size={13}/> Sign out</button>
         </div>
-      </>
-    )
-  }
+      </div>
+    </>
+  )
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // GAME SCREEN
-  // ═══════════════════════════════════════════════════════════════════════════
   return (
     <>
-      <style>{BASE_CSS + `
-        .gw{min-height:100vh;background:${theme.boardColors.pageBg};padding:1.5rem 1rem;transition:background .4s;}
+      <style>{BASE + `
+        .gw{min-height:100vh;background:${theme.boardColors.pageBg};padding:1.5rem 1rem;}
         .gl{display:flex;flex-direction:row;align-items:flex-start;gap:2rem;width:100%;max-width:980px;margin:0 auto;}
         .bc{flex:0 0 auto;width:min(560px,calc(100vw - 360px));min-width:280px;}
         .pc{flex:0 0 280px;width:280px;display:flex;flex-direction:column;gap:.65rem;padding-top:2.5rem;}
         @media(max-width:720px){.gl{flex-direction:column;align-items:center;}.bc{width:min(560px,calc(100vw - 2rem));}.pc{flex:none;width:min(560px,calc(100vw - 2rem));padding-top:0;}}
         .bw{position:relative;width:100%;padding-top:100%;}
-        .bg{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);border:1px solid ${tx}14;box-shadow:0 12px 40px -8px rgba(0,0,0,.16);}
+        .bgrid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);border:1px solid ${tx}14;box-shadow:0 12px 40px -8px rgba(0,0,0,.16);}
         .sq{position:relative;display:flex;align-items:center;justify-content:center;border:none;padding:0;cursor:pointer;width:100%;height:100%;}
         .dot{position:absolute;width:26%;height:26%;border-radius:50%;background:${isDark?"rgba(255,255,255,.3)":"rgba(0,0,0,.24)"};pointer-events:none;z-index:3;}
-        .ring{position:absolute;inset:0;border:3px solid ${theme.boardColors.selected};pointer-events:none;z-index:3;border-radius:1px;}
-        .coord{position:absolute;font-size:10px;font-family:'DM Mono',monospace;font-weight:500;z-index:1;pointer-events:none;opacity:.58;line-height:1;}
-        .pr-row{display:flex;justify-content:space-between;align-items:center;padding:.5rem .1rem;}
+        .ring{position:absolute;inset:0;border:3px solid ${theme.boardColors.selected};pointer-events:none;z-index:3;}
+        .coord{position:absolute;font-size:10px;font-family:'DM Mono',monospace;z-index:1;pointer-events:none;opacity:.58;}
+        .prow{display:flex;justify-content:space-between;align-items:center;padding:.5rem .1rem;}
         .card{background:${bg};border:1px solid ${br};border-radius:4px;overflow:hidden;}
         .chd{display:flex;justify-content:space-between;align-items:center;padding:.65rem .9rem;border-bottom:1px solid ${br};}
         .lbl{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;opacity:.38;}
-        .cs{padding:.65rem .9rem;max-height:115px;overflow-y:auto;}
-        .cs::-webkit-scrollbar{width:3px;}
-        .cs::-webkit-scrollbar-thumb{background:${tx}10;border-radius:2px;}
-        .mw{padding:.5rem .9rem .65rem;max-height:80px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:.15rem .3rem;}
-        .mw::-webkit-scrollbar{width:3px;}
-        .ar{display:flex;gap:.45rem;}
-        .ab{flex:1;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid ${tx}1e;color:${tx};padding:.58rem .4rem;border-radius:3px;cursor:pointer;transition:all .2s;}
-        .ab:hover{border-color:${tx}48;background:${tx}06;}
-        .bl{position:fixed;inset:0;z-index:200;background:${isDark?"rgba(0,0,0,.75)":"rgba(26,25,22,.35)"};backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;}
-        .rm{background:${theme.boardColors.pageBg};border:1px solid ${br};padding:2.5rem 2rem;border-radius:6px;text-align:center;width:290px;max-width:90vw;}
-        .pm{background:${theme.boardColors.pageBg};border:1px solid ${br};padding:1.75rem;border-radius:6px;width:250px;max-width:90vw;display:flex;flex-direction:column;gap:.55rem;align-items:center;}
-        .pb{width:100%;font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;background:none;border:1px solid ${tx}22;color:${tx};padding:.78rem;border-radius:3px;cursor:pointer;transition:all .2s;}
-        .pb:hover{border-color:${tx}52;background:${tx}06;}
+        .cscroll{padding:.65rem .9rem;max-height:115px;overflow-y:auto;}
+        .mwrap{padding:.5rem .9rem .65rem;max-height:80px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:.15rem .3rem;}
+        .arow{display:flex;gap:.45rem;}
+        .abtn2{flex:1;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid ${tx}1e;color:${tx};padding:.58rem .4rem;border-radius:3px;cursor:pointer;transition:all .2s;}
+        .abtn2:hover{border-color:${tx}48;background:${tx}06;}
+        .blay{position:fixed;inset:0;z-index:200;background:${isDark?"rgba(0,0,0,.75)":"rgba(26,25,22,.35)"};backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;}
+        .rmod{background:${theme.boardColors.pageBg};border:1px solid ${br};padding:2.5rem 2rem;border-radius:6px;text-align:center;width:290px;max-width:90vw;}
+        .pmod{background:${theme.boardColors.pageBg};border:1px solid ${br};padding:1.75rem;border-radius:6px;width:250px;max-width:90vw;display:flex;flex-direction:column;gap:.55rem;align-items:center;}
+        .pbtn{width:100%;font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;background:none;border:1px solid ${tx}22;color:${tx};padding:.78rem;border-radius:3px;cursor:pointer;transition:all .2s;}
+        .pbtn:hover{border-color:${tx}52;background:${tx}06;}
       `}</style>
-
       <div className="gw">
         <div className="gl">
-
-          {/* Board */}
           <div className="bc">
-            <div className="pr-row">
+            <div className="prow">
               <span className="fm" style={{fontSize:".68rem",letterSpacing:".1em",textTransform:"uppercase",opacity:isBA?1:.42,display:"flex",alignItems:"center",gap:".4rem"}}>
-                <span style={{width:7,height:7,borderRadius:"50%",background:isDark?"#1D222B":"#2d2d2d",border:`1.5px solid ${tx}38`,display:"inline-block"}}/>
+                <span style={{width:7,height:7,borderRadius:"50%",background:"#2d2d2d",border:`1.5px solid ${tx}38`,display:"inline-block"}}/>
                 Black {isBotThinking&&gameMode==="pve"&&<span style={{opacity:.38,fontSize:".54rem"}}>(thinking)</span>}
               </span>
               <span className="fm" style={{fontSize:"1rem",opacity:isBA?1:.32}}>{fmt(blackTime)}</span>
             </div>
-
             <div className="bw">
-              <div className="bg">
+              <div className="bgrid">
                 {RANKS.map(rank=>FILES.map(file=>{
                   const sq=`${file}${rank}` as Square
                   const piece=game.get(sq)
@@ -551,8 +490,7 @@ export default function ChessPage() {
                 }))}
               </div>
             </div>
-
-            <div className="pr-row">
+            <div className="prow">
               <span className="fm" style={{fontSize:".68rem",letterSpacing:".1em",textTransform:"uppercase",opacity:isWA?1:.42,display:"flex",alignItems:"center",gap:".4rem"}}>
                 <span style={{width:7,height:7,borderRadius:"50%",background:"#f5f0e8",border:`1.5px solid ${tx}25`,display:"inline-block"}}/>
                 White
@@ -560,51 +498,36 @@ export default function ChessPage() {
               <span className="fm" style={{fontSize:"1rem",opacity:isWA?1:.32}}>{fmt(whiteTime)}</span>
             </div>
           </div>
-
-          {/* Panel */}
           <div className="pc">
-
             <div className="card">
               <div className="chd">
                 <span className="lbl">Status</span>
-                <button onClick={()=>{setIsPaused(true);setSettingsOpen(true)}}
-                  style={{background:"none",border:"none",cursor:"pointer",color:tx,opacity:.35,display:"flex",padding:0,transition:"opacity .2s"}}
-                  onMouseEnter={e=>(e.currentTarget.style.opacity=".8")} onMouseLeave={e=>(e.currentTarget.style.opacity=".35")}>
+                <button onClick={()=>{setIsPaused(true);setSettingsOpen(true)}} style={{background:"none",border:"none",cursor:"pointer",color:tx,opacity:.35,display:"flex",padding:0}}>
                   <Settings size={14}/>
                 </button>
               </div>
               <div className="fs" style={{fontSize:"1rem",fontStyle:"italic",padding:".65rem .9rem",lineHeight:1.4,color:tx}}>
-                {game.isCheckmate()?`${game.turn()==="w"?"Black":"White"} wins.`
-                  :game.isDraw()?"Drawn position."
-                  :game.isCheck()?`${game.turn()==="w"?"White":"Black"} in check.`
-                  :`${game.turn()==="w"?"White":"Black"} to move`}
+                {game.isCheckmate()?`${game.turn()==="w"?"Black":"White"} wins.`:game.isDraw()?"Drawn.":game.isCheck()?`${game.turn()==="w"?"White":"Black"} in check.`:`${game.turn()==="w"?"White":"Black"} to move`}
               </div>
             </div>
-
             <div className="card">
               <div className="chd">
                 <span className="lbl">AI Coach</span>
-                <button onClick={handleAskAI}
-                  style={{fontFamily:"'DM Mono',monospace",fontSize:".55rem",letterSpacing:".1em",textTransform:"uppercase",padding:".22rem .5rem",border:`1px solid ${tx}28`,background:"transparent",color:tx,borderRadius:"3px",cursor:"pointer",transition:"all .2s"}}
-                  onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background=`${tx}08`}}
-                  onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background="transparent"}}>
-                  Ask
-                </button>
+                <button onClick={handleAskAI} style={{fontFamily:"'DM Mono',monospace",fontSize:".55rem",letterSpacing:".1em",textTransform:"uppercase",padding:".22rem .5rem",border:`1px solid ${tx}28`,background:"transparent",color:tx,borderRadius:"3px",cursor:"pointer"}}>Ask</button>
               </div>
-              <div className="cs" ref={coachRef}>
+              <div className="cscroll" ref={coachRef}>
                 {coachMessages.map((msg,i)=>(
                   <p key={i} className="fb" style={{fontSize:".88rem",fontStyle:"italic",lineHeight:1.45,marginBottom:".3rem",color:i===coachMessages.length-1?tx:`${tx}42`}}>{msg}</p>
                 ))}
               </div>
             </div>
-
             {moveHistory.length>0&&(
               <div className="card">
                 <div className="chd">
                   <span className="lbl">Moves</span>
                   <span className="fm" style={{fontSize:".55rem",opacity:.3}}>{moveHistory.length}</span>
                 </div>
-                <div className="mw">
+                <div className="mwrap">
                   {moveHistory.map((m,i)=>(
                     <span key={i} className="fm" style={{fontSize:".58rem",opacity:i===moveHistory.length-1?1:.42}}>
                       {i%2===0&&<span style={{opacity:.25}}>{Math.floor(i/2)+1}.</span>}{m}
@@ -613,42 +536,34 @@ export default function ChessPage() {
                 </div>
               </div>
             )}
-
-            <div className="ar">
-              <button className="ab" onClick={()=>{setIsPaused(true);setSettingsOpen(true)}}>Pause</button>
-              <button className="ab" onClick={resetGame}>New</button>
-              {user&&<button className="ab" onClick={()=>setScreen("profile")} title="Profile"><User size={11}/></button>}
+            <div className="arow">
+              <button className="abtn2" onClick={()=>{setIsPaused(true);setSettingsOpen(true)}}>Pause</button>
+              <button className="abtn2" onClick={resetGame}>New</button>
+              {user&&<button className="abtn2" onClick={()=>setScreen("profile")}><User size={11}/></button>}
             </div>
-
           </div>
         </div>
-
-        {/* Result overlay */}
         {gameResult&&(
-          <div className="bl">
-            <div className="rm" style={{color:tx}}>
+          <div className="blay">
+            <div className="rmod" style={{color:tx}}>
               <p className="fm" style={{fontSize:".58rem",letterSpacing:".25em",textTransform:"uppercase",opacity:.32,marginBottom:".5rem"}}>Game over</p>
-              <p className="fs" style={{fontSize:"1.8rem",fontStyle:"italic",lineHeight:1.1,marginBottom:".3rem"}}>
-                {gameResult.winner==="Draw"?"A draw.":`${gameResult.winner} wins.`}
-              </p>
+              <p className="fs" style={{fontSize:"1.8rem",fontStyle:"italic",lineHeight:1.1,marginBottom:".3rem"}}>{gameResult.winner==="Draw"?"A draw.":`${gameResult.winner} wins.`}</p>
               <p className="fb" style={{fontStyle:"italic",opacity:.38,marginBottom:"2rem"}}>by {gameResult.reason}</p>
               <div style={{display:"flex",flexDirection:"column",gap:".5rem"}}>
-                <button className="pb" onClick={resetGame}>Play again</button>
-                <button className="pb" onClick={()=>{resetGame();setScreen("menu")}}>Back to menu</button>
-                {user&&<button className="pb" onClick={()=>setScreen("profile")}>View profile</button>}
+                <button className="pbtn" onClick={resetGame}>Play again</button>
+                <button className="pbtn" onClick={()=>{resetGame();setScreen("menu")}}>Back to menu</button>
+                {user&&<button className="pbtn" onClick={()=>setScreen("profile")}>View profile</button>}
               </div>
             </div>
           </div>
         )}
-
-        {/* Pause overlay */}
         {settingsOpen&&(
-          <div className="bl" onClick={()=>{setIsPaused(false);setSettingsOpen(false)}}>
-            <div className="pm" onClick={e=>e.stopPropagation()} style={{color:tx}}>
+          <div className="blay" onClick={()=>{setIsPaused(false);setSettingsOpen(false)}}>
+            <div className="pmod" onClick={e=>e.stopPropagation()} style={{color:tx}}>
               <p className="fm" style={{fontSize:".6rem",letterSpacing:".2em",textTransform:"uppercase",opacity:.32,marginBottom:".4rem",alignSelf:"flex-start"}}>Paused</p>
-              <button className="pb" onClick={()=>{setIsPaused(false);setSettingsOpen(false)}}>Resume</button>
-              <button className="pb" onClick={()=>{resetGame();setIsPaused(false);setSettingsOpen(false)}}>Restart</button>
-              <button className="pb" onClick={()=>{resetGame();setIsPaused(false);setSettingsOpen(false);setScreen("menu")}}>Exit to menu</button>
+              <button className="pbtn" onClick={()=>{setIsPaused(false);setSettingsOpen(false)}}>Resume</button>
+              <button className="pbtn" onClick={()=>{resetGame();setIsPaused(false);setSettingsOpen(false)}}>Restart</button>
+              <button className="pbtn" onClick={()=>{resetGame();setIsPaused(false);setSettingsOpen(false);setScreen("menu")}}>Exit to menu</button>
             </div>
           </div>
         )}
