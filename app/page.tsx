@@ -193,18 +193,20 @@ export default function ChessPage() {
     setSelectedSquare(null); setLegalMoves([])
   }, [game, selectedSquare, legalMoves, isGameActive, isPaused, lastCoachComment, addCoach])
 
-  // НОВАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ ЦВЕТА КЛЕТОК
+// НОВАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ ЦВЕТА КЛЕТОК
   const getSquareBg = (file: string, rank: string, sq: Square) => {
     const isLightSq = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
     
-    // Подсветка ходов (теперь она полупрозрачная, чтобы текстуру доски было видно сквозь нее)
+    // Подсветка ходов
     if (selectedSquare === sq) return theme.boardColors.selected
     if (lastMove && (lastMove.from === sq || lastMove.to === sq)) return isLightSq ? theme.boardColors.lastLight : theme.boardColors.lastDark
     
-    // Если есть картинка доски, делаем клетки полностью прозрачными
-    if (theme.boardImageUrl) return "transparent"
+    // Секрет премиум-доски: делаем цвета полупрозрачными (добавляем B3 = 70% непрозрачности)
+    if (theme.boardImageUrl) {
+      return isLightSq ? `${theme.boardColors.light}B3` : `${theme.boardColors.dark}B3`
+    }
     
-    // Если картинки нет (как в неоне), заливаем сплошным цветом
+    // Обычная заливка, если картинки нет
     return isLightSq ? theme.boardColors.light : theme.boardColors.dark
   }
 
