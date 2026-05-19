@@ -9,7 +9,7 @@ const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
 const UNIFIED_THEMES = {
   arcticCobalt: {
     name: "The Arctic Cobalt Theme",
-    boardImageUrl: "/aluminium.png", // Загруженная текстура алюминия
+    boardImageUrl: "/aluminium.png", 
     boardColors: {
       light: "#A3B8CC",
       dark: "#4C5A66",
@@ -24,7 +24,7 @@ const UNIFIED_THEMES = {
   },
   amberOak: {
     name: "The Amber Oak Theme",
-    boardImageUrl: "/wood.png", // Загруженная текстура дуба (цельная доска)
+    boardImageUrl: "/wood.png", 
     boardColors: {
       light: "#EBDDCB",
       dark: "#614332",
@@ -39,7 +39,7 @@ const UNIFIED_THEMES = {
   },
   neonDusk: {
     name: "The Neon Dusk Theme",
-    boardImageUrl: "", // Для неона оставляем чистую темную заливку
+    boardImageUrl: "", // Неон остается чистым
     boardColors: {
       light: "#2C3341",
       dark: "#1D222B",
@@ -54,7 +54,7 @@ const UNIFIED_THEMES = {
   },
   softSmoke: {
     name: "The Soft Smoke Theme",
-    boardImageUrl: "/marble.png", // Загруженная текстура мрамора
+    boardImageUrl: "/marble.png", 
     boardColors: {
       light: "#E3C8C8",
       dark: "#7E8E99",
@@ -137,7 +137,7 @@ export default function ChessPage() {
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   
-  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v7", "amberOak")
+  const [currentThemeKey, setCurrentThemeKey] = useLocalStorage<UnifiedThemeKey>("chess_premium_theme_v8", "amberOak")
   
   const coachRef = useRef<HTMLDivElement>(null)
   const usedPhrasesRef = useRef<Set<string>>(new Set())
@@ -192,17 +192,18 @@ export default function ChessPage() {
     setSelectedSquare(null); setLegalMoves([])
   }, [game, selectedSquare, legalMoves, isGameActive, isPaused, lastCoachComment, addCoach])
 
+  // ИСПРАВЛЕНИЕ ЗДЕСЬ:
   const getSquareBg = (file: string, rank: string, sq: Square) => {
     const isLightSq = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
     
-    // Подсветка ходов (полупрозрачная, чтобы ложилась поверх картинки)
     if (selectedSquare === sq) return theme.boardColors.selected
     if (lastMove && (lastMove.from === sq || lastMove.to === sq)) return isLightSq ? theme.boardColors.lastLight : theme.boardColors.lastDark
     
-    // Если мы используем картинку как доску, сами клетки должны стать прозрачными
-    if (theme.boardImageUrl) return "transparent"
+    if (theme.boardImageUrl) {
+      // D9 = 85% непрозрачности. Цвета перекрывают градиент картинки, но текстура мягко видна.
+      return isLightSq ? `${theme.boardColors.light}D9` : `${theme.boardColors.dark}D9`
+    }
     
-    // Обычная сплошная заливка (для темы Неон или если картинки нет)
     return isLightSq ? theme.boardColors.light : theme.boardColors.dark
   }
 
@@ -252,7 +253,7 @@ export default function ChessPage() {
                 width: "100%", aspectRatio: "1", display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(8,1fr)", 
                 border: `2px solid ${panelBorder}`, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.2)",
                 backgroundImage: theme.boardImageUrl ? `url("${theme.boardImageUrl}")` : "none",
-                backgroundSize: "cover", /* Заполняет всю область */
+                backgroundSize: "cover", 
                 backgroundPosition: "center",
                 backgroundColor: theme.boardColors.dark
               }}>
