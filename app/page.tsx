@@ -755,38 +755,6 @@ export default function ChessPage() {
       </button>
     )
   }
-    const ref = useRef<HTMLDivElement>(null)
-    useEffect(() => {
-      if (!ref.current) return
-      const script = document.createElement("script")
-      script.src = "https://telegram.org/js/telegram-widget.js?22"
-      script.setAttribute("data-telegram-login", "chessc_auth_bot")
-      script.setAttribute("data-size", "large")
-      script.setAttribute("data-auth-url", window.location.origin + "/?tgauth=1")
-      script.setAttribute("data-request-access", "write")
-      script.setAttribute("data-lang", lang)
-      script.async = true
-      ref.current.appendChild(script)
-      return () => { if (ref.current) ref.current.innerHTML = "" }
-    }, [lang])
-
-    // Читаем параметры из URL после редиректа
-    useEffect(() => {
-      const params = new URLSearchParams(window.location.search)
-      if (params.get("tgauth") !== "1") return
-      const data: Record<string, string> = {}
-      params.forEach((v, k) => { if (k !== "tgauth") data[k] = v })
-      if (!data.hash) return
-      // Чистим URL
-      window.history.replaceState({}, "", window.location.pathname)
-      fetch("/api/auth/telegram", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }).then(r => r.json()).then(json => { if (json.ok) onAuth(json.user) }).catch(() => {})
-    }, [onAuth])
-
-    return <div ref={ref} />
-  }
 
   // ── PROFILE SCREEN ──
   if (screen === "profile" && tgUser) {
