@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FDF5E6"/>
+      <stop offset="100%" style="stop-color:#F5E6C8"/>
+    </linearGradient>
+    <linearGradient id="board1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F0D9B5"/>
+      <stop offset="100%" style="stop-color:#E8CFA0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <rect width="1200" height="630" fill="none" stroke="#614332" stroke-width="0.3" opacity="0.06"/>
+
+  <!-- Chess board (right side) -->
+  <g transform="translate(640, 65)">
+    <!-- Board shadow -->
+    <rect x="4" y="4" width="480" height="480" rx="4" fill="rgba(0,0,0,0.15)"/>
+    <!-- Board squares -->
+    <rect width="480" height="480" rx="3" fill="#B58863"/>
+    <!-- Light squares -->
+    <rect x="0"   y="0"   width="60" height="60" fill="#F0D9B5"/>
+    <rect x="120" y="0"   width="60" height="60" fill="#F0D9B5"/>
+    <rect x="240" y="0"   width="60" height="60" fill="#F0D9B5"/>
+    <rect x="360" y="0"   width="60" height="60" fill="#F0D9B5"/>
+    <rect x="60"  y="60"  width="60" height="60" fill="#F0D9B5"/>
+    <rect x="180" y="60"  width="60" height="60" fill="#F0D9B5"/>
+    <rect x="300" y="60"  width="60" height="60" fill="#F0D9B5"/>
+    <rect x="420" y="60"  width="60" height="60" fill="#F0D9B5"/>
+    <rect x="0"   y="120" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="120" y="120" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="240" y="120" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="360" y="120" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="60"  y="180" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="180" y="180" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="300" y="180" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="420" y="180" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="0"   y="240" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="120" y="240" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="240" y="240" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="360" y="240" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="60"  y="300" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="180" y="300" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="300" y="300" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="420" y="300" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="0"   y="360" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="120" y="360" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="240" y="360" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="360" y="360" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="60"  y="420" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="180" y="420" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="300" y="420" width="60" height="60" fill="#F0D9B5"/>
+    <rect x="420" y="420" width="60" height="60" fill="#F0D9B5"/>
+    <!-- Highlight square -->
+    <rect x="180" y="240" width="60" height="60" fill="rgba(255,215,50,0.6)"/>
+    <!-- Board border -->
+    <rect width="480" height="480" rx="3" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="1.5"/>
+    <!-- Chess pieces (text symbols) -->
+    <text x="210" y="290" font-size="44" text-anchor="middle" dominant-baseline="middle" font-family="serif">♛</text>
+    <text x="30"  y="470" font-size="36" text-anchor="middle" dominant-baseline="middle" font-family="serif" fill="#3d2b1f">♙</text>
+    <text x="90"  y="470" font-size="36" text-anchor="middle" dominant-baseline="middle" font-family="serif" fill="#3d2b1f">♙</text>
+    <text x="150" y="470" font-size="36" text-anchor="middle" dominant-baseline="middle" font-family="serif" fill="#3d2b1f">♙</text>
+    <text x="270" y="470" font-size="36" text-anchor="middle" dominant-baseline="middle" font-family="serif" fill="#3d2b1f">♙</text>
+    <text x="30"  y="50"  font-size="36" text-anchor="middle" dominant-baseline="middle" font-family="serif">♜</text>
+    <text x="90"  y="50"  font-size="36" text-anchor="middle" dominant-baseline="middle" font-family="serif">♞</text>
+    <text x="150" y="50"  font-size="36" text-anchor="middle" dominant-baseline="middle" font-family="serif">♝</text>
+    <text x="210" y="50"  font-size="36" text-anchor="middle" dominant-baseline="middle" font-family="serif">♚</text>
+  </g>
+
+  <!-- Left side text -->
+  <text x="80" y="170" font-family="Georgia, serif" font-style="italic" font-size="112" fill="#3d2b1f" opacity="0.92">Chess</text>
+  <line x1="80" y1="210" x2="320" y2="210" stroke="#614332" stroke-width="1.5" opacity="0.3"/>
+  <text x="80" y="255" font-family="'Courier New', monospace" font-size="16" fill="#614332" opacity="0.55" letter-spacing="3">PLAY · LEARN · IMPROVE</text>
+
+  <!-- Feature pills -->
+  <g transform="translate(80, 300)">
+    <!-- Pill 1 -->
+    <rect width="155" height="36" rx="18" fill="rgba(97,67,50,0.1)" stroke="rgba(97,67,50,0.2)" stroke-width="1"/>
+    <text x="78" y="23" font-family="'Courier New', monospace" font-size="13" fill="#614332" text-anchor="middle" opacity="0.8">♟ Play vs AI</text>
+    <!-- Pill 2 -->
+    <rect x="170" width="165" height="36" rx="18" fill="rgba(97,67,50,0.1)" stroke="rgba(97,67,50,0.2)" stroke-width="1"/>
+    <text x="253" y="23" font-family="'Courier New', monospace" font-size="13" fill="#614332" text-anchor="middle" opacity="0.8">✦ Learn Chess</text>
+    <!-- Pill 3 -->
+    <rect y="50" width="175" height="36" rx="18" fill="rgba(97,67,50,0.1)" stroke="rgba(97,67,50,0.2)" stroke-width="1"/>
+    <text x="88" y="73" font-family="'Courier New', monospace" font-size="13" fill="#614332" text-anchor="middle" opacity="0.8">🤖 AI Coach</text>
+    <!-- Pill 4 -->
+    <rect x="190" y="50" width="185" height="36" rx="18" fill="rgba(97,67,50,0.1)" stroke="rgba(97,67,50,0.2)" stroke-width="1"/>
+    <text x="283" y="73" font-family="'Courier New', monospace" font-size="13" fill="#614332" text-anchor="middle" opacity="0.8">4 Difficulty Levels</text>
+  </g>
+
+  <!-- URL -->
+  <text x="80" y="580" font-family="'Courier New', monospace" font-size="15" fill="#614332" opacity="0.38" letter-spacing="1">chess-c-rho.vercel.app</text>
+</svg>
