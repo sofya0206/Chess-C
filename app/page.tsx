@@ -2,14 +2,50 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Chess, Square } from "chess.js"
-import { Settings, X, ChevronRight, ChevronLeft, RotateCcw } from "lucide-react"
+import { Settings, X, ChevronRight, ChevronLeft, RotateCcw, LogOut, User } from "lucide-react"
 
 type UnifiedThemeKey = keyof typeof UNIFIED_THEMES
 type GameResult = { winner: "White" | "Black" | "Draw"; reason: string }
-type Screen = "splash" | "menu" | "game" | "learn" | "history"
+type Screen = "splash" | "menu" | "game" | "learn" | "history" | "profile"
 type Lang = "en" | "ru"
 type Difficulty = "easy" | "medium" | "hard" | "master"
 type LearnTab = "rules" | "tutorial"
+
+type TelegramUser = {
+  id: string
+  first_name: string
+  username: string
+  photo_url: string
+}
+
+type UserXP = {
+  xp: number
+  level: number
+  gamesPlayed: number
+  wins: number
+  losses: number
+  draws: number
+}
+
+// XP helpers
+const XP_WIN = 50; const XP_DRAW = 20; const XP_LOSS = 10; const XP_LONG = 15
+function xpForLevel(l: number) { return Math.floor(100 * Math.pow(1.4, l - 1)) }
+function levelFromXp(xp: number) { let l=1,t=0; while(t+xpForLevel(l)<=xp){t+=xpForLevel(l);l++;if(l>=50)break}; return l }
+function levelProgress(xp: number) { let l=1,t=0; while(t+xpForLevel(l)<=xp){t+=xpForLevel(l);l++;if(l>=50)break}; return(xp-t)/xpForLevel(l) }
+const TITLES: Record<number,{en:string;ru:string}> = {
+  1:{en:"Beginner",ru:"Новичок"},2:{en:"Beginner",ru:"Новичок"},
+  3:{en:"Student",ru:"Ученик"},4:{en:"Student",ru:"Ученик"},
+  5:{en:"Apprentice",ru:"Подмастерье"},6:{en:"Apprentice",ru:"Подмастерье"},
+  7:{en:"Club Player",ru:"Клубный"},8:{en:"Club Player",ru:"Клубный"},
+  9:{en:"Tournament",ru:"Турнирный"},10:{en:"Tournament",ru:"Турнирный"},
+  11:{en:"Candidate",ru:"Кандидат"},12:{en:"Candidate",ru:"Кандидат"},
+  13:{en:"Expert",ru:"Эксперт"},14:{en:"Expert",ru:"Эксперт"},
+  15:{en:"Master",ru:"Мастер"},16:{en:"Master",ru:"Мастер"},
+  17:{en:"Int. Master",ru:"Межд. Мастер"},18:{en:"Int. Master",ru:"Межд. Мастер"},
+  19:{en:"Grandmaster",ru:"Гроссмейстер"},20:{en:"Grandmaster",ru:"Гроссмейстер"},
+}
+function getTitle(level: number, lang: Lang) { const c=Math.min(level,20); return TITLES[c]?.[lang]??(lang==="ru"?"Легенда":"Legend") }
+
 type LocalGame = {
   id: string
   date: string
@@ -50,6 +86,10 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     history: "History", noGames: "No games yet", vsHuman: "vs Human", vsAI: "vs Stockfish",
     winLabel: "Win", lossLabel: "Loss", drawLabel: "Draw", clearHistory: "Clear history",
     movesLabel: "moves", today: "Today", yesterday: "Yesterday",
+    signIn: "Sign in", signInTg: "Sign in with Telegram", signOut: "Sign out",
+    profile: "Profile", level: "Level", xp: "XP", yourProgress: "Your Progress",
+    gamesPlayed: "Games", winRate: "Win rate", xpGained: "XP gained",
+    levelUp: "Level up!", nextLevel: "Next level",
   },
   ru: {
     welcomeTo: "ДОБРО ПОЖАЛОВАТЬ В", chooseGame: "выберите игру",
@@ -76,6 +116,10 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     history: "История", noGames: "Игр пока нет", vsHuman: "vs Человек", vsAI: "vs Stockfish",
     winLabel: "Победа", lossLabel: "Поражение", drawLabel: "Ничья", clearHistory: "Очистить",
     movesLabel: "ходов", today: "Сегодня", yesterday: "Вчера",
+    signIn: "Войти", signInTg: "Войти через Telegram", signOut: "Выйти",
+    profile: "Профиль", level: "Уровень", xp: "XP", yourProgress: "Прогресс",
+    gamesPlayed: "Игры", winRate: "Винрейт", xpGained: "Получено XP",
+    levelUp: "Новый уровень!", nextLevel: "До след. уровня",
   },
 }
 
@@ -382,6 +426,9 @@ export default function ChessPage() {
   const [isBotThinking, setIsBotThinking] = useState(false)
   const [sessionScore, setSessionScore] = useLocalStorage<{ w: number; l: number; d: number }>("chess_score", { w: 0, l: 0, d: 0 })
   const [localHistory, setLocalHistory] = useLocalStorage<LocalGame[]>("chess_history_v1", [])
+  const [tgUser, setTgUser] = useLocalStorage<TelegramUser | null>("chess_tg_user", null)
+  const [userXP, setUserXP] = useLocalStorage<UserXP>("chess_xp_v1", { xp: 0, level: 1, gamesPlayed: 0, wins: 0, losses: 0, draws: 0 })
+  const [xpPopup, setXpPopup] = useState<{ gained: number; levelUp: boolean } | null>(null)
   const [historyStack, setHistoryStack] = useState<string[]>([])
   const coachRef = useRef<HTMLDivElement>(null)
 
@@ -473,18 +520,41 @@ export default function ChessPage() {
       l: prev.l + (result.winner === "Black" ? 1 : 0),
       d: prev.d + (result.winner === "Draw" ? 1 : 0),
     }))
+
+    // Начисляем XP
+    const movesCount = gameRef.current.history().length
+    let gained = dbResult === "win" ? XP_WIN : dbResult === "draw" ? XP_DRAW : XP_LOSS
+    if (movesCount >= 20) gained += XP_LONG
+    if (dbResult === "win" && result.reason === "checkmate") gained += 25
+
+    setUserXP(prev => {
+      const newXp = prev.xp + gained
+      const newLevel = levelFromXp(newXp)
+      const didLevelUp = newLevel > prev.level
+      setTimeout(() => setXpPopup({ gained, levelUp: didLevelUp }), 800)
+      setTimeout(() => setXpPopup(null), 4000)
+      return {
+        xp: newXp,
+        level: newLevel,
+        gamesPlayed: prev.gamesPlayed + 1,
+        wins: prev.wins + (dbResult === "win" ? 1 : 0),
+        losses: prev.losses + (dbResult === "loss" ? 1 : 0),
+        draws: prev.draws + (dbResult === "draw" ? 1 : 0),
+      }
+    })
+
     const newGame: LocalGame = {
       id: Date.now().toString(),
       date: new Date().toISOString(),
       mode: gameMode,
       result: dbResult,
       reason: result.reason,
-      moves: gameRef.current.history().length,
+      moves: movesCount,
       duration: Math.floor((Date.now() - gameStartTimeRef.current) / 1000),
       difficulty: gameMode === "pve" ? difficulty : undefined,
     }
     setLocalHistory(prev => [newGame, ...prev].slice(0, 50))
-  }, [setSessionScore, setLocalHistory, gameMode, difficulty])
+  }, [setSessionScore, setLocalHistory, setUserXP, gameMode, difficulty])
 
   const addCoach = useCallback((msg: string) => setCoachMessages(p => [...p, msg]), [])
 
@@ -647,6 +717,132 @@ export default function ChessPage() {
     </div>
   )
 
+  // ── TELEGRAM LOGIN BUTTON ──
+  function TelegramLoginButton({ onAuth, lang }: { onAuth: (u: TelegramUser) => void; lang: Lang }) {
+    const ref = useRef<HTMLDivElement>(null)
+    useEffect(() => {
+      if (!ref.current) return
+      ;(window as any).onTelegramAuth = async (data: Record<string, string>) => {
+        try {
+          const res = await fetch("/api/auth/telegram", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          })
+          const json = await res.json()
+          if (json.ok) onAuth(json.user)
+        } catch {}
+      }
+      const script = document.createElement("script")
+      script.src = "https://telegram.org/js/telegram-widget.js?22"
+      script.setAttribute("data-telegram-login", "chessc_auth_bot")
+      script.setAttribute("data-size", "medium")
+      script.setAttribute("data-onauth", "onTelegramAuth(user)")
+      script.setAttribute("data-request-access", "write")
+      script.setAttribute("data-lang", lang)
+      script.async = true
+      ref.current.appendChild(script)
+      return () => { if (ref.current) ref.current.innerHTML = "" }
+    }, [onAuth, lang])
+    return <div ref={ref} />
+  }
+
+  // ── PROFILE SCREEN ──
+  if (screen === "profile" && tgUser) {
+    const wr = userXP.gamesPlayed > 0 ? Math.round((userXP.wins / userXP.gamesPlayed) * 100) : 0
+    const prog = Math.round(levelProgress(userXP.xp) * 100)
+    return (
+      <>
+        <style>{BASE + `
+          .pw{min-height:100vh;background:${theme.boardColors.pageBg};color:${tx};padding:2rem 1rem;animation:screenIn .35s cubic-bezier(.4,0,.2,1)}
+          .pin{max-width:420px;margin:0 auto}
+          .back3{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;background:none;border:none;color:${tx}50;cursor:pointer;padding:0;margin-bottom:1.8rem;display:flex;align-items:center;gap:.3rem;transition:color .2s}
+          .back3:hover{color:${tx}}
+          .pstat{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:1.2rem}
+          .psc{background:${bg};border:1px solid ${br};border-radius:4px;padding:1rem;text-align:center;transition:all .2s}
+          .psc:hover{box-shadow:0 4px 12px -4px rgba(0,0,0,.1);transform:translateY(-1px)}
+          .signoutbtn{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;background:none;border:1px solid ${tx}18;color:${tx}45;padding:.55rem 1rem;border-radius:3px;cursor:pointer;display:flex;align-items:center;gap:.4rem;transition:all .2s;margin-top:1.2rem}
+          .signoutbtn:hover{border-color:rgba(239,68,68,.4);color:rgba(239,68,68,.7);background:rgba(239,68,68,.05)}
+          @keyframes screenIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+        `}</style>
+        <div className="pw">
+          <div className="pin">
+            <button className="back3" onClick={() => setScreen("menu")}>
+              <ChevronLeft size={12} /> {lang === "ru" ? "В меню" : "Back"}
+            </button>
+
+            {/* Avatar + name */}
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
+              <div style={{ width: 60, height: 60, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: `${tx}10`, border: `2px solid ${tx}14` }}>
+                {tgUser.photo_url
+                  ? <img src={tgUser.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : <User size={28} style={{ opacity: .3, margin: "auto", display: "block", paddingTop: 16 }} />}
+              </div>
+              <div>
+                <div className="fs" style={{ fontSize: "1.5rem", fontStyle: "italic", color: tx }}>{tgUser.first_name}</div>
+                {tgUser.username && <div className="fm" style={{ fontSize: ".6rem", opacity: .38, marginTop: ".15rem" }}>@{tgUser.username}</div>}
+              </div>
+            </div>
+
+            {/* Level card */}
+            <div style={{ background: bg, border: `1px solid ${br}`, borderRadius: 6, padding: "1.25rem", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: ".8rem" }}>
+                <div>
+                  <div className="fm" style={{ fontSize: ".56rem", letterSpacing: ".2em", textTransform: "uppercase", opacity: .35, marginBottom: ".3rem" }}>{t.level} {userXP.level}</div>
+                  <div className="fs" style={{ fontSize: "1.4rem", fontStyle: "italic", color: tx }}>{getTitle(userXP.level, lang)}</div>
+                </div>
+                <div className="fm" style={{ fontSize: "1.1rem", opacity: .6 }}>{userXP.xp} <span style={{ fontSize: ".6rem", opacity: .6 }}>XP</span></div>
+              </div>
+              {/* XP progress bar */}
+              <div style={{ height: 4, background: `${tx}10`, borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${prog}%`, background: `${tx}65`, borderRadius: 2, transition: "width .6s" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: ".4rem" }}>
+                <span className="fm" style={{ fontSize: ".52rem", opacity: .3 }}>{prog}%</span>
+                <span className="fm" style={{ fontSize: ".52rem", opacity: .3 }}>{t.nextLevel}: {xpForLevel(userXP.level)} XP</span>
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="pstat">
+              {([
+                [userXP.gamesPlayed, t.gamesPlayed],
+                [`${wr}%`, t.winRate],
+                [userXP.wins, lang==="ru"?"Победы":"Wins"],
+                [userXP.losses, lang==="ru"?"Пораж.":"Losses"],
+              ] as [any,string][]).map(([v,l]) => (
+                <div key={l} className="psc">
+                  <div className="fs" style={{ fontSize: "1.6rem", fontStyle: "italic", color: tx, lineHeight: 1 }}>{v}</div>
+                  <div className="fm" style={{ fontSize: ".5rem", letterSpacing: ".14em", textTransform: "uppercase", opacity: .35, marginTop: ".25rem" }}>{l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* XP breakdown */}
+            <div style={{ background: bg, border: `1px solid ${br}`, borderRadius: 4, padding: "1rem", marginBottom: ".6rem" }}>
+              <p className="fm" style={{ fontSize: ".56rem", letterSpacing: ".2em", textTransform: "uppercase", opacity: .35, marginBottom: ".75rem" }}>XP</p>
+              {([
+                [lang==="ru"?"Победа":"Win", "+50"],
+                [lang==="ru"?"Ничья":"Draw", "+20"],
+                [lang==="ru"?"Поражение":"Loss", "+10"],
+                [lang==="ru"?"Длинная партия (20+ ходов)":"Long game (20+ moves)", "+15"],
+                [lang==="ru"?"Мат":"Checkmate", "+25"],
+              ] as [string,string][]).map(([label, xp]) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: ".3rem 0", borderBottom: `1px solid ${tx}08` }}>
+                  <span className="fm" style={{ fontSize: ".62rem", opacity: .55 }}>{label}</span>
+                  <span className="fm" style={{ fontSize: ".62rem", color: "#4ade80", opacity: .8 }}>{xp}</span>
+                </div>
+              ))}
+            </div>
+
+            <button className="signoutbtn" onClick={() => { setTgUser(null); setScreen("menu") }}>
+              <LogOut size={13} /> {t.signOut}
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   // ── MENU ──
   if (screen === "menu") return (
     <>
@@ -706,6 +902,60 @@ export default function ChessPage() {
           <button className="mbtn learn" onClick={() => setScreen("learn")}>✦ {t.learn}</button>
           <button className="mbtn learn" onClick={() => setScreen("history")}>◈ {t.history}</button>
           <button className="mbtn" onClick={() => setSettingsOpen(true)}>{t.settings}</button>
+        </div>
+
+        {/* Telegram auth block */}
+        <div style={{ marginTop: "2rem", width: "100%", maxWidth: 280 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: ".75rem", marginBottom: ".75rem" }}>
+            <div style={{ flex: 1, height: "1px", background: `${tx}14` }} />
+            <span className="fm" style={{ fontSize: ".54rem", letterSpacing: ".2em", textTransform: "uppercase", opacity: .3 }}>
+              {tgUser ? t.profile : t.signIn}
+            </span>
+            <div style={{ flex: 1, height: "1px", background: `${tx}14` }} />
+          </div>
+
+          {tgUser ? (
+            // Профиль карточка
+            <div style={{ border: `1px solid ${tx}18`, borderRadius: 4, overflow: "hidden" }}>
+              {/* User info */}
+              <div style={{ display: "flex", alignItems: "center", gap: ".75rem", padding: ".85rem 1rem", cursor: "pointer", transition: "background .2s" }}
+                onClick={() => setScreen("profile")}
+                onMouseEnter={e => (e.currentTarget.style.background = `${tx}06`)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: `${tx}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {tgUser.photo_url
+                    ? <img src={tgUser.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <User size={16} style={{ opacity: .4 }} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="fm" style={{ fontSize: ".68rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {tgUser.first_name}{tgUser.username ? ` @${tgUser.username}` : ""}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: ".4rem", marginTop: ".2rem" }}>
+                    <span className="fm" style={{ fontSize: ".54rem", opacity: .5 }}>
+                      Lv.{userXP.level} · {getTitle(userXP.level, lang)}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight size={13} style={{ opacity: .25 }} />
+              </div>
+              {/* XP bar */}
+              <div style={{ padding: ".4rem 1rem .7rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: ".3rem" }}>
+                  <span className="fm" style={{ fontSize: ".52rem", opacity: .35 }}>{userXP.xp} XP</span>
+                  <span className="fm" style={{ fontSize: ".52rem", opacity: .35 }}>{t.nextLevel}: {xpForLevel(userXP.level)} XP</span>
+                </div>
+                <div style={{ height: 3, background: `${tx}12`, borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${Math.round(levelProgress(userXP.xp) * 100)}%`, background: `${tx}60`, borderRadius: 2, transition: "width .5s" }} />
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Кнопка Telegram login
+            <div id="telegram-login-container" style={{ display: "flex", justifyContent: "center" }}>
+              <TelegramLoginButton onAuth={(user) => setTgUser(user)} lang={lang} />
+            </div>
+          )}
         </div>
 
         {/* Session score */}
@@ -1001,6 +1251,38 @@ export default function ChessPage() {
           </div>
         )}
         {settingsOpen && <SettingsModal onClose={() => { setIsPaused(false); setSettingsOpen(false) }} inGame />}
+
+        {/* XP Popup */}
+        {xpPopup && (
+          <div style={{ position: "fixed", bottom: "2rem", right: "2rem", zIndex: 300, animation: "slideUp .4s ease", pointerEvents: "none" }}>
+            <div style={{ background: bg, border: `1px solid ${tx}20`, borderRadius: 8, padding: "1rem 1.4rem", boxShadow: "0 8px 32px -8px rgba(0,0,0,.25)", minWidth: 160 }}>
+              {xpPopup.levelUp && (
+                <div className="fs" style={{ fontSize: "1rem", fontStyle: "italic", color: tx, marginBottom: ".3rem" }}>
+                  {t.levelUp} Lv.{userXP.level}
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+                <span style={{ fontSize: "1.2rem" }}>⭐</span>
+                <span className="fm" style={{ fontSize: ".75rem", color: "#4ade80" }}>+{xpPopup.gained} XP</span>
+              </div>
+              <div className="fm" style={{ fontSize: ".56rem", opacity: .4, marginTop: ".3rem", textTransform: "uppercase", letterSpacing: ".1em" }}>{getTitle(userXP.level, lang)}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Profile mini-button (top right) */}
+        {tgUser && (
+          <div style={{ position: "fixed", top: "1rem", right: "1rem", zIndex: 50 }}>
+            <div onClick={() => setScreen("profile")} style={{ display: "flex", alignItems: "center", gap: ".5rem", background: bg, border: `1px solid ${br}`, borderRadius: 20, padding: ".3rem .7rem .3rem .3rem", cursor: "pointer", transition: "all .2s", boxShadow: "0 2px 8px -2px rgba(0,0,0,.1)" }}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 4px 14px -4px rgba(0,0,0,.18)")}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = "0 2px 8px -2px rgba(0,0,0,.1)")}>
+              <div style={{ width: 22, height: 22, borderRadius: "50%", overflow: "hidden", background: `${tx}10` }}>
+                {tgUser.photo_url ? <img src={tgUser.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <User size={12} style={{ opacity: .4 }} />}
+              </div>
+              <span className="fm" style={{ fontSize: ".58rem", opacity: .65 }}>Lv.{userXP.level}</span>
+            </div>
+          </div>
+        )}
       </div>
     </>
   )
