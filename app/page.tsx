@@ -89,7 +89,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     signIn: "Sign in", signInTg: "Sign in with Telegram", signOut: "Sign out",
     profile: "Profile", level: "Level", xp: "XP", yourProgress: "Your Progress",
     gamesPlayed: "Games", winRate: "Win rate", xpGained: "XP gained",
-    levelUp: "Level up!", nextLevel: "Next level",
+    levelUp: "Level up!", nextLevel: "Next level", lang: "en",
   },
   ru: {
     welcomeTo: "ДОБРО ПОЖАЛОВАТЬ В", chooseGame: "выберите игру",
@@ -119,7 +119,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     signIn: "Войти", signInTg: "Войти через Telegram", signOut: "Выйти",
     profile: "Профиль", level: "Уровень", xp: "XP", yourProgress: "Прогресс",
     gamesPlayed: "Игры", winRate: "Винрейт", xpGained: "Получено XP",
-    levelUp: "Новый уровень!", nextLevel: "До след. уровня",
+    levelUp: "Новый уровень!", nextLevel: "До след. уровня", lang: "ru",
   },
 }
 
@@ -718,7 +718,43 @@ export default function ChessPage() {
   )
 
   // ── TELEGRAM LOGIN BUTTON ──
-  function TelegramLoginButton({ onAuth, lang }: { onAuth: (u: TelegramUser) => void; lang: Lang }) {
+  // ── TELEGRAM OPENID LOGIN ──
+  function TelegramLoginButton({ onAuth, tx, t }: { onAuth: (u: TelegramUser) => void; tx: string; t: Record<string,string> }) {
+    // Читаем ?tguser=... из URL после редиректа
+    useEffect(() => {
+      const params = new URLSearchParams(window.location.search)
+      const tguser = params.get("tguser")
+      const tgerror = params.get("tgerror")
+      if (tguser) {
+        try {
+          const user = JSON.parse(decodeURIComponent(tguser))
+          window.history.replaceState({}, "", window.location.pathname)
+          onAuth(user)
+        } catch {}
+      }
+      if (tgerror) {
+        window.history.replaceState({}, "", window.location.pathname)
+      }
+    }, [onAuth])
+
+    const handleLogin = () => {
+      const clientId = "8831113537"
+      const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/telegram/callback`)
+      const state = Math.random().toString(36).slice(2)
+      const url = `https://oauth.telegram.org/auth?bot_id=${clientId}&origin=${encodeURIComponent(window.location.origin)}&redirect_uri=${redirectUri}&state=${state}&request_access=write`
+      window.location.href = url
+    }
+
+    return (
+      <button onClick={handleLogin}
+        style={{ width: "100%", fontFamily: "'DM Mono',monospace", fontSize: ".68rem", letterSpacing: ".15em", textTransform: "uppercase", background: "none", border: `1px solid ${tx}30`, color: tx, padding: ".75rem 1rem", borderRadius: 3, cursor: "pointer", transition: "all .2s", display: "flex", alignItems: "center", justifyContent: "center", gap: ".5rem" }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = `${tx}60`; e.currentTarget.style.background = `${tx}06`; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 12px -4px rgba(0,0,0,.14)" }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = `${tx}30`; e.currentTarget.style.background = "none"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "" }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.024 9.54c-.148.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.697l-2.95-.924c-.642-.2-.654-.642.136-.953l11.527-4.448c.535-.194 1.003.13.37.876z"/></svg>
+        {t.signInTg}
+      </button>
+    )
+  }
     const ref = useRef<HTMLDivElement>(null)
     useEffect(() => {
       if (!ref.current) return
@@ -957,10 +993,8 @@ export default function ChessPage() {
               </div>
             </div>
           ) : (
-            // Кнопка Telegram login
-            <div id="telegram-login-container" style={{ display: "flex", justifyContent: "center" }}>
-              <TelegramLoginButton onAuth={(user) => setTgUser(user)} lang={lang} />
-            </div>
+            // Простой вход — только имя
+            <TelegramLoginButton onAuth={(user) => setTgUser(user)} tx={tx} t={t} />
           )}
         </div>
 
