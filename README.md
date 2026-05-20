@@ -2,7 +2,7 @@
 
 > Шахматное приложение с ИИ-тренером, интерактивными туториалами и движком Stockfish. Играй с друзьями или тренируйся против ИИ на 4 уровнях сложности.
 
-🌐 **[Открыть приложение](https://chess-c-rho.vercel.app/)** | 📂 **[GitHub]
+🌐 **[Открыть приложение](https://chess-c-rho.vercel.app/)** | 📂 
 
 **[→ Открыть приложение](https://chess-c-rho.vercel.app/)** · **[→ GitHub](https://github.com/sofya0206/Chess-C)**
 
