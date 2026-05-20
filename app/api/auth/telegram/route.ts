@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   try {
     // Exchange code for tokens using Basic auth
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64")
-    const redirectUri = `${url.origin}/api/auth/telegram/callback`
+    const redirectUri = `${url.origin}/api/auth/telegram`
 
     const tokenRes = await fetch("https://oauth.telegram.org/token", {
       method: "POST",
