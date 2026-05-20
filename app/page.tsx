@@ -196,7 +196,7 @@ export default function ChessPage() {
   const [lang, setLang] = useLocalStorage<Lang>("chess_lang", "en")
   const [difficulty, setDifficulty] = useLocalStorage<Difficulty>("chess_difficulty", "medium")
   const [gameMode, setGameMode] = useState<"pvp" | "pve">("pvp")
-  const [pendingMode, setPendingMode] = useState<"pvp" | "pve">("pvp")
+  const [pendingMode, setPendingMode] = useState<"pvp" | "pve" | null>(null)
   const [isBotThinking, setIsBotThinking] = useState(false)
   const coachRef = useRef<HTMLDivElement>(null)
 
@@ -431,11 +431,13 @@ export default function ChessPage() {
             </div>
           )}
 
-          {/* Start button */}
-          <button className="mbtn hi" style={{ marginTop: ".4rem", background: `${tx}08`, borderColor: `${tx}60` }}
-            onClick={() => { setGameMode(pendingMode); resetGame(); setScreen("game") }}>
-            {pendingMode === "pve" ? `▶  ${t.playAI} · ${t[difficulty]}` : `▶  ${t.playFriend}`}
-          </button>
+          {/* Start button — only after mode selected */}
+          {pendingMode && (
+            <button className="mbtn hi" style={{ marginTop: ".4rem", background: `${tx}08`, borderColor: `${tx}60` }}
+              onClick={() => { setGameMode(pendingMode!); resetGame(); setScreen("game") }}>
+              {pendingMode === "pve" ? `▶  ${t.playAI} · ${t[difficulty]}` : `▶  ${t.playFriend}`}
+            </button>
+          )}
 
           <button className="mbtn" onClick={() => setSettingsOpen(true)}>{t.settings}</button>
         </div>
