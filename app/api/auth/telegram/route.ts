@@ -1,55 +1,83 @@
-import { createHmac } from "crypto"
 import { NextResponse } from "next/server"
 
-// Верификация данных от Telegram Login Widget
-function verifyTelegramAuth(data: Record<string, string>, botToken: string): boolean {
-  const { hash, ...rest } = data
-  if (!hash) return false
+export async function GET(request: Request) {
+  const url = new URL(request.url)
+  const code = url.searchParams.get("code")
+  const error = url.searchParams.get("error")
 
-  // Сортируем поля и склеиваем через \n
-  const checkString = Object.keys(rest)
-    .sort()
-    .map(k => `${k}=${rest[k]}`)
-    .join("\n")
+  if (error || !code) {
+    return NextResponse.redirect(new URL(`/?tgerror=${error || "no_code"}`, url.origin))
+  }
 
-  // Создаём секретный ключ из токена бота
-  const secretKey = createHmac("sha256", "WebAppData").update(botToken).digest()
-  const expectedHash = createHmac("sha256", secretKey).update(checkString).digest("hex")
+  const clientId = process.env.TELEGRAM_CLIENT_ID
+  const clientSecret = process.env.TELEGRAM_CLIENT_SECRET
 
-  // Проверяем что данные не старше 1 дня
-  const authDate = parseInt(rest.auth_date || "0")
-  const isExpired = Date.now() / 1000 - authDate > 86400
+  if (!clientId || !clientSecret) {
+    return NextResponse.redirect(new URL("/?tgerror=config", url.origin))
+  }
 
-  return expectedHash === hash && !isExpired
-}
-
-export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const botToken = process.env.TELEGRAM_BOT_TOKEN
+    // Exchange code for tokens using Basic auth
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64")
+    const redirectUri = `${url.origin}/api/auth/telegram/callback`
 
-    if (!botToken) {
-      return NextResponse.json({ error: "Bot token not configured" }, { status: 500 })
-    }
-
-    const isValid = verifyTelegramAuth(body, botToken)
-
-    if (!isValid) {
-      return NextResponse.json({ error: "Invalid auth data" }, { status: 401 })
-    }
-
-    // Возвращаем профиль пользователя
-    return NextResponse.json({
-      ok: true,
-      user: {
-        id: body.id,
-        first_name: body.first_name,
-        last_name: body.last_name || "",
-        username: body.username || "",
-        photo_url: body.photo_url || "",
-      }
+    const tokenRes = await fetch("https://oauth.telegram.org/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": `Basic ${credentials}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+      }).toString(),
     })
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 })
+
+    const tokenData = await tokenRes.json()
+
+    if (!tokenData.access_token && !tokenData.id_token) {
+      console.error("Token error:", tokenData)
+      return NextResponse.redirect(new URL("/?tgerror=token", url.origin))
+    }
+
+    // Decode id_token (JWT) — just parse payload, no need to verify on client
+    let user: { id: string; first_name: string; username: string; photo_url: string }
+
+    if (tokenData.id_token) {
+      const payload = JSON.parse(
+        Buffer.from(tokenData.id_token.split(".")[1], "base64url").toString()
+      )
+      user = {
+        id: String(payload.id || payload.sub || ""),
+        first_name: payload.name || payload.given_name || "User",
+        username: payload.preferred_username || "",
+        photo_url: payload.picture || "",
+      }
+    } else {
+      // Fallback: try userinfo endpoint
+      const userRes = await fetch("https://oauth.telegram.org/userinfo", {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      })
+      const userInfo = await userRes.json()
+      user = {
+        id: String(userInfo.id || userInfo.sub || ""),
+        first_name: userInfo.name || userInfo.first_name || "User",
+        username: userInfo.preferred_username || userInfo.username || "",
+        photo_url: userInfo.picture || userInfo.photo_url || "",
+      }
+    }
+
+    if (!user.id) {
+      return NextResponse.redirect(new URL("/?tgerror=no_user", url.origin))
+    }
+
+    const userData = encodeURIComponent(JSON.stringify(user))
+    return NextResponse.redirect(new URL(`/?tguser=${userData}`, url.origin))
+
+  } catch (e) {
+    console.error("Auth error:", e)
+    return NextResponse.redirect(new URL("/?tgerror=server", url.origin))
   }
 }
