@@ -106,10 +106,30 @@ const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
 const SKAK = "https://raw.githubusercontent.com/MuTsunTsai/skak-svg/main/svg/{color}{piece}.svg"
 
 const UNIFIED_THEMES = {
-  arcticCobalt: { name: "Arctic Cobalt", boardImageUrl: "/aluminium.png", boardColors: { light: "#A3B8CC", dark: "#4C5A66", pageBg: "#EAF4FC", lastLight: "rgba(23,59,240,0.3)", lastDark: "rgba(23,59,240,0.4)", selected: "rgba(23,59,240,0.6)" }, coachUI: { bg: "#FFFFFF", border: "rgba(60,69,75,0.15)", text: "#1a1916" }, pieceFilter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))", pieceSetUrl: SKAK },
-  amberOak: { name: "Amber Oak", boardImageUrl: "/wood.png", boardColors: { light: "#EBDDCB", dark: "#614332", pageBg: "#FDF5E6", lastLight: "rgba(214,176,57,0.4)", lastDark: "rgba(214,176,57,0.5)", selected: "rgba(214,176,57,0.7)" }, coachUI: { bg: "#FFFDF7", border: "rgba(97,67,50,0.15)", text: "#3d2b1f" }, pieceFilter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))", pieceSetUrl: SKAK },
-  neonDusk: { name: "Neon Dusk", boardImageUrl: "", boardColors: { light: "#2C3341", dark: "#1D222B", pageBg: "#161920", lastLight: "#3D4452", lastDark: "#2E333C", selected: "rgba(0,240,255,0.4)" }, coachUI: { bg: "#1D222B", border: "rgba(255,255,255,0.08)", text: "#e5e5e5" }, pieceFilter: "invert(1) hue-rotate(180deg) brightness(2) drop-shadow(0 0 6px #00F0FF)", pieceSetUrl: SKAK },
-  softSmoke: { name: "Soft Smoke", boardImageUrl: "/marble.png", boardColors: { light: "#E3C8C8", dark: "#7E8E99", pageBg: "#DFE2E5", lastLight: "rgba(237,121,121,0.4)", lastDark: "rgba(237,121,121,0.5)", selected: "rgba(237,121,121,0.7)" }, coachUI: { bg: "#FFFFFF", border: "rgba(142,156,165,0.18)", text: "#4a555e" }, pieceFilter: "opacity(0.85) drop-shadow(0 2px 4px rgba(0,0,0,0.12))", pieceSetUrl: SKAK },
+  arcticCobalt: {
+    name: "Arctic Cobalt", boardImageUrl: "",
+    boardColors: { light: "#DEE6ED", dark: "#4F7396", pageBg: "#EAF1F7", lastLight: "rgba(100,160,220,0.45)", lastDark: "rgba(30,90,160,0.55)", selected: "rgba(255,210,50,0.75)" },
+    coachUI: { bg: "#FFFFFF", border: "rgba(60,90,120,0.14)", text: "#1e2d3d" },
+    pieceFilter: "drop-shadow(0 3px 6px rgba(0,0,0,0.25))", pieceSetUrl: SKAK,
+  },
+  amberOak: {
+    name: "Amber Oak", boardImageUrl: "",
+    boardColors: { light: "#F0D9B5", dark: "#B58863", pageBg: "#FDF5E6", lastLight: "rgba(205,170,50,0.5)", lastDark: "rgba(180,130,30,0.6)", selected: "rgba(255,215,50,0.8)" },
+    coachUI: { bg: "#FFFDF7", border: "rgba(97,67,50,0.14)", text: "#3d2b1f" },
+    pieceFilter: "drop-shadow(0 3px 6px rgba(0,0,0,0.22))", pieceSetUrl: SKAK,
+  },
+  neonDusk: {
+    name: "Neon Dusk", boardImageUrl: "",
+    boardColors: { light: "#3D4A5C", dark: "#1A2332", pageBg: "#111827", lastLight: "rgba(0,200,255,0.25)", lastDark: "rgba(0,180,230,0.35)", selected: "rgba(0,240,255,0.5)" },
+    coachUI: { bg: "#1e2a3a", border: "rgba(255,255,255,0.08)", text: "#e2e8f0" },
+    pieceFilter: "drop-shadow(0 0 8px rgba(0,220,255,0.4)) brightness(1.1)", pieceSetUrl: SKAK,
+  },
+  softSmoke: {
+    name: "Soft Smoke", boardImageUrl: "",
+    boardColors: { light: "#EEE8E0", dark: "#8B7355", pageBg: "#F5F1EB", lastLight: "rgba(180,150,80,0.4)", lastDark: "rgba(150,110,40,0.5)", selected: "rgba(220,180,60,0.75)" },
+    coachUI: { bg: "#FEFCF9", border: "rgba(100,80,60,0.14)", text: "#3d3428" },
+    pieceFilter: "drop-shadow(0 3px 6px rgba(0,0,0,0.2))", pieceSetUrl: SKAK,
+  },
 } as const
 
 const getPieceUrl = (color: string, piece: string, theme: (typeof UNIFIED_THEMES)[UnifiedThemeKey]) =>
@@ -273,7 +293,7 @@ function LearnScreen({ theme, lang, onBack }: { theme: (typeof UNIFIED_THEMES)[U
                 <div className="tgrid">
                   <div>
                     <div style={{ position: "relative", width: "100%", paddingTop: "100%" }}>
-                      <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(8,1fr)", border: `1px solid ${tx}14`, boxShadow: "0 8px 30px -6px rgba(0,0,0,.18)" }}>
+                      <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(8,1fr)", border: "1px solid rgba(0,0,0,0.12)", boxShadow: "0 20px 60px -10px rgba(0,0,0,.28),0 4px 16px -4px rgba(0,0,0,.14)", borderRadius: 2, overflow: "hidden" }}>
                         {RANKS.map(rank => FILES.map(file => {
                           const sq = `${file}${rank}` as Square; const piece = tutGame.get(sq)
                           const isL = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0
@@ -694,7 +714,7 @@ export default function ChessPage() {
         .pc{flex:0 0 280px;width:280px;display:flex;flex-direction:column;gap:.65rem;padding-top:2.5rem}
         @media(max-width:720px){.gl{flex-direction:column;align-items:center}.bc{width:min(560px,calc(100vw - 2rem))}.pc{flex:none;width:min(560px,calc(100vw - 2rem));padding-top:0}}
         .bw{position:relative;width:100%;padding-top:100%}
-        .bgrid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);border:1px solid ${tx}14;box-shadow:0 12px 40px -8px rgba(0,0,0,.16)}
+        .bgrid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);border:1px solid rgba(0,0,0,0.12);box-shadow:0 20px 60px -10px rgba(0,0,0,.3),0 4px 16px -4px rgba(0,0,0,.15);border-radius:2px;overflow:hidden;}
         .sq{position:relative;display:flex;align-items:center;justify-content:center;border:none;padding:0;cursor:pointer;width:100%;height:100%;transition:filter .1s}
         .sq:active:not([disabled]){filter:brightness(.92)}
         .dot{position:absolute;width:26%;height:26%;border-radius:50%;background:${isDark ? "rgba(255,255,255,.3)" : "rgba(0,0,0,.24)"};pointer-events:none;z-index:3}
