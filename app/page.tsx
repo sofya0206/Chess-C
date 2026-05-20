@@ -209,7 +209,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
 ]
 
-const DIFFICULTY_DEPTH: Record<Difficulty, number> = { easy: 1, medium: 5, hard: 10, master: 18 }
+const DIFFICULTY_DEPTH: Record<Difficulty, number> = { easy: 1, medium: 3, hard: 6, master: 10 }
 const DIFFICULTY_DOTS: Record<Difficulty, number> = { easy: 1, medium: 2, hard: 3, master: 4 }
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
@@ -601,9 +601,12 @@ export default function ChessPage() {
     if (screen !== "game" || gameMode !== "pve" || !isGameActive || isPaused || game.isGameOver() || game.turn() !== "b" || isBotThinking) return
     const go = async () => {
       setIsBotThinking(true)
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 8000)
       try {
         const cur = gameRef.current
-        const res = await fetch(`https://stockfish.online/api/s/v2.php?fen=${encodeURIComponent(cur.fen())}&depth=${DIFFICULTY_DEPTH[difficulty]}`)
+        const res = await fetch(`https://stockfish.online/api/s/v2.php?fen=${encodeURIComponent(cur.fen())}&depth=${DIFFICULTY_DEPTH[difficulty]}`, { signal: controller.signal })
+        clearTimeout(timeout)
         const data = await res.json()
         if (data.success && data.bestmove) {
           const uci = data.bestmove.split(" ")[1]
@@ -619,7 +622,22 @@ export default function ChessPage() {
             else if (next.isDraw() || next.isStalemate()) endGame({ winner: "Draw", reason: t.draw }, next.history().length)
           }
         }
-      } catch {}
+      } catch {
+        clearTimeout(timeout)
+        // При таймауте делаем случайный ход
+        try {
+          const cur = gameRef.current
+          const moves = cur.moves({ verbose: true })
+          if (moves.length > 0) {
+            const mv = moves[Math.floor(Math.random() * moves.length)]
+            const next = new Chess(cur.fen())
+            next.move(mv)
+            gameRef.current = next; setGame(next)
+            setMoveHistory(next.history()); setLastMove({ from: mv.from as Square, to: mv.to as Square })
+            addCoach(`${t.stockfish}: ${mv.san}`)
+          }
+        } catch {}
+      }
       setIsBotThinking(false)
     }
     const delay = difficulty === "easy" ? 300 : difficulty === "medium" ? 600 : difficulty === "hard" ? 900 : 1400
