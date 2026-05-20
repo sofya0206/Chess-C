@@ -323,7 +323,6 @@ function LearnScreen({ theme, lang, onBack }: { theme: (typeof UNIFIED_THEMES)[U
 export default function ChessPage() {
   const [screen, setScreen] = useState<Screen>("splash")
   const [splashOut, setSplashOut] = useState(false)
-  const [menuIn, setMenuIn] = useState(false)
   const [mounted, setMounted] = useState(false)
   const gameRef = useRef(new Chess())
   const [game, setGame] = useState(() => new Chess())
@@ -358,7 +357,7 @@ export default function ChessPage() {
   useEffect(() => {
     setMounted(true)
     const t1 = setTimeout(() => setSplashOut(true), 1800)
-    const t2 = setTimeout(() => { setScreen("menu"); setMenuIn(true) }, 2300)
+    const t2 = setTimeout(() => setScreen("menu"), 2300)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
@@ -600,7 +599,7 @@ export default function ChessPage() {
   if (screen === "menu") return (
     <>
       <style>{BASE + `
-        .root{min-height:100vh;background:${theme.boardColors.pageBg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;color:${tx};}
+        .root{min-height:100vh;background:${theme.boardColors.pageBg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;color:${tx};animation:fadeIn .4s ease;}
         .mbtn{display:block;width:100%;max-width:280px;font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;background:none;border:1px solid ${tx}28;color:${tx};padding:.85rem 1.5rem;border-radius:3px;cursor:pointer;transition:all .2s;text-align:center;}
         .mbtn:hover{border-color:${tx}60;background:${tx}06;}
         .mbtn.hi{border-color:${tx}50;}
@@ -615,7 +614,6 @@ export default function ChessPage() {
         .score-bar{display:flex;gap:.5rem;align-items:center;margin-top:.5rem;}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        .root{animation:${menuIn ? "fadeIn .4s ease" : "none"}}
       `}</style>
       <div className="root">
         <p className="fm" style={{ fontSize: ".58rem", letterSpacing: ".4em", textTransform: "uppercase", opacity: .32, marginBottom: ".5rem" }}>{t.welcomeTo}</p>
