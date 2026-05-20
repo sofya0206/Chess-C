@@ -739,7 +739,7 @@ export default function ChessPage() {
 
     const handleLogin = () => {
       const clientId = "8831113537"
-      const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/telegram/callback`)
+      const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/telegram`)
       const state = Math.random().toString(36).slice(2)
       sessionStorage.setItem("tg_state", state)
       const url = `https://oauth.telegram.org/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile&state=${state}`
