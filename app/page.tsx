@@ -6,10 +6,20 @@ import { Settings, X, ChevronRight, ChevronLeft, RotateCcw } from "lucide-react"
 
 type UnifiedThemeKey = keyof typeof UNIFIED_THEMES
 type GameResult = { winner: "White" | "Black" | "Draw"; reason: string }
-type Screen = "splash" | "menu" | "game" | "learn"
+type Screen = "splash" | "menu" | "game" | "learn" | "history"
 type Lang = "en" | "ru"
 type Difficulty = "easy" | "medium" | "hard" | "master"
 type LearnTab = "rules" | "tutorial"
+type LocalGame = {
+  id: string
+  date: string
+  mode: "pvp" | "pve"
+  result: "win" | "loss" | "draw"
+  reason: string
+  moves: number
+  duration: number
+  difficulty?: string
+}
 type TimeControl = 3 | 5 | 10 | 0
 
 const PIECE_VALUES: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
@@ -37,6 +47,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rulesTab: "Rules", tutorialTab: "Tutorial", score: "Score",
     unlimited: "∞", min: "min", captured: "captured",
     sessionScore: "Session",
+    history: "History", noGames: "No games yet", vsHuman: "vs Human", vsAI: "vs Stockfish",
+    winLabel: "Win", lossLabel: "Loss", drawLabel: "Draw", clearHistory: "Clear history",
+    movesLabel: "moves", today: "Today", yesterday: "Yesterday",
   },
   ru: {
     welcomeTo: "ДОБРО ПОЖАЛОВАТЬ В", chooseGame: "выберите игру",
@@ -60,6 +73,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     rulesTab: "Правила", tutorialTab: "Тренировка", score: "Счёт",
     unlimited: "∞", min: "мин", captured: "взято",
     sessionScore: "Сессия",
+    history: "История", noGames: "Игр пока нет", vsHuman: "vs Человек", vsAI: "vs Stockfish",
+    winLabel: "Победа", lossLabel: "Поражение", drawLabel: "Ничья", clearHistory: "Очистить",
+    movesLabel: "ходов", today: "Сегодня", yesterday: "Вчера",
   },
 }
 
@@ -365,6 +381,7 @@ export default function ChessPage() {
   const [pendingMode, setPendingMode] = useState<"pvp" | "pve" | null>(null)
   const [isBotThinking, setIsBotThinking] = useState(false)
   const [sessionScore, setSessionScore] = useLocalStorage<{ w: number; l: number; d: number }>("chess_score", { w: 0, l: 0, d: 0 })
+  const [localHistory, setLocalHistory] = useLocalStorage<LocalGame[]>("chess_history_v1", [])
   const [historyStack, setHistoryStack] = useState<string[]>([])
   const coachRef = useRef<HTMLDivElement>(null)
 
@@ -446,14 +463,28 @@ export default function ChessPage() {
     return () => clearTimeout(timer)
   }, [game, gameMode, screen, isGameActive, isPaused, isBotThinking, difficulty, t])
 
+  const gameStartTimeRef = useRef(Date.now())
+
   const handleGameEnd = useCallback((result: GameResult) => {
     setGameResult(result); setIsGameActive(false)
+    const dbResult: "win" | "loss" | "draw" = result.winner === "Draw" ? "draw" : result.winner === "White" ? "win" : "loss"
     setSessionScore(prev => ({
       w: prev.w + (result.winner === "White" ? 1 : 0),
       l: prev.l + (result.winner === "Black" ? 1 : 0),
       d: prev.d + (result.winner === "Draw" ? 1 : 0),
     }))
-  }, [setSessionScore])
+    const newGame: LocalGame = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      mode: gameMode,
+      result: dbResult,
+      reason: result.reason,
+      moves: gameRef.current.history().length,
+      duration: Math.floor((Date.now() - gameStartTimeRef.current) / 1000),
+      difficulty: gameMode === "pve" ? difficulty : undefined,
+    }
+    setLocalHistory(prev => [newGame, ...prev].slice(0, 50))
+  }, [setSessionScore, setLocalHistory, gameMode, difficulty])
 
   const addCoach = useCallback((msg: string) => setCoachMessages(p => [...p, msg]), [])
 
@@ -476,6 +507,7 @@ export default function ChessPage() {
     const initTime = getInitialTime()
     setWhiteTime(initTime); setBlackTime(initTime); setIsGameActive(false)
     setIsPaused(false); setLastMove(null); setGameResult(null); setIsBotThinking(false)
+    gameStartTimeRef.current = Date.now()
   }, [t, getInitialTime])
 
   const handleUndo = useCallback(() => {
@@ -619,9 +651,10 @@ export default function ChessPage() {
   if (screen === "menu") return (
     <>
       <style>{BASE + `
-        .root{min-height:100vh;background:${theme.boardColors.pageBg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;color:${tx};animation:fadeIn .4s ease;}
-        .mbtn{display:block;width:100%;max-width:280px;font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;background:none;border:1px solid ${tx}28;color:${tx};padding:.85rem 1.5rem;border-radius:3px;cursor:pointer;transition:all .2s;text-align:center;}
-        .mbtn:hover{border-color:${tx}60;background:${tx}06;}
+        .root{min-height:100vh;background:${theme.boardColors.pageBg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;color:${tx};animation:screenIn .35s cubic-bezier(.4,0,.2,1);}
+        .mbtn{display:block;width:100%;max-width:280px;font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;background:none;border:1px solid ${tx}28;color:${tx};padding:.85rem 1.5rem;border-radius:3px;cursor:pointer;transition:all .22s;text-align:center;}
+        .mbtn:hover{border-color:${tx}65;background:${tx}07;box-shadow:0 4px 14px -4px rgba(0,0,0,.14);transform:translateY(-1px)}
+        .mbtn:active{transform:translateY(0);box-shadow:none}
         .mbtn.hi{border-color:${tx}50;}
         .mbtn.active{border-color:${tx}80;background:${tx}0a;}
         .mbtn.learn{border-style:dashed;opacity:.7;}
@@ -629,11 +662,12 @@ export default function ChessPage() {
         .dcard{width:100%;max-width:280px;border:1px solid ${tx}18;border-radius:3px;overflow:hidden;animation:slideUp .25s ease;}
         .drow{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;cursor:pointer;transition:all .2s;border-bottom:1px solid ${tx}10;}
         .drow:last-child{border-bottom:none;}
-        .drow:hover{background:${tx}06;}
+        .drow:hover{background:${tx}06;padding-left:1.15rem;}
         .drow.sel{background:${tx}0a;border-left:2px solid ${tx}60;}
         .score-bar{display:flex;gap:.5rem;align-items:center;margin-top:.5rem;}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes screenIn{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
       `}</style>
       <div className="root">
         <p className="fm" style={{ fontSize: ".58rem", letterSpacing: ".4em", textTransform: "uppercase", opacity: .32, marginBottom: ".5rem" }}>{t.welcomeTo}</p>
@@ -670,6 +704,7 @@ export default function ChessPage() {
           )}
 
           <button className="mbtn learn" onClick={() => setScreen("learn")}>✦ {t.learn}</button>
+          <button className="mbtn learn" onClick={() => setScreen("history")}>◈ {t.history}</button>
           <button className="mbtn" onClick={() => setSettingsOpen(true)}>{t.settings}</button>
         </div>
 
@@ -704,11 +739,108 @@ export default function ChessPage() {
     </>
   )
 
+  // ── HISTORY ──
+  if (screen === "history") {
+    const fmtDur = (s: number) => s < 60 ? `${s}s` : `${Math.floor(s/60)}m ${s%60}s`
+    const fmtDate = (iso: string) => {
+      const d = new Date(iso); const now = new Date()
+      const isToday = d.toDateString() === now.toDateString()
+      const yest = new Date(now); yest.setDate(yest.getDate()-1)
+      const isYest = d.toDateString() === yest.toDateString()
+      if (isToday) return `${t.today}, ${d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}`
+      if (isYest) return `${t.yesterday}, ${d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}`
+      return d.toLocaleDateString(lang === "ru" ? "ru-RU" : "en-GB", {day:"numeric",month:"short"})
+    }
+    const wins = localHistory.filter(g => g.result === "win").length
+    const losses = localHistory.filter(g => g.result === "loss").length
+    const draws = localHistory.filter(g => g.result === "draw").length
+    const wr = localHistory.length > 0 ? Math.round((wins/localHistory.length)*100) : 0
+    return (
+      <>
+        <style>{BASE + `
+          .hw{min-height:100vh;background:${theme.boardColors.pageBg};color:${tx};padding:2rem 1rem;animation:screenIn .35s cubic-bezier(.4,0,.2,1)}
+          .hin{max-width:520px;margin:0 auto}
+          .back2{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;background:none;border:none;color:${tx}50;cursor:pointer;padding:0;margin-bottom:1.8rem;display:flex;align-items:center;gap:.3rem;transition:color .2s}
+          .back2:hover{color:${tx}}
+          .hsg{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;border:1px solid ${tx}12;border-radius:4px;overflow:hidden;margin-bottom:1.5rem}
+          .hsc{padding:1rem .5rem;text-align:center;background:${bg};transition:background .2s}
+          .hsc:hover{background:${tx}05}
+          .hlist{display:flex;flex-direction:column;gap:0;border:1px solid ${br};border-radius:4px;overflow:hidden}
+          .hrow{display:flex;align-items:center;gap:.75rem;padding:.85rem 1rem;border-bottom:1px solid ${tx}08;transition:background .2s;cursor:default}
+          .hrow:last-child{border-bottom:none}
+          .hrow:hover{background:${tx}04}
+          .clrbtn{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid ${tx}18;color:${tx}45;padding:.4rem .8rem;border-radius:3px;cursor:pointer;transition:all .2s}
+          .clrbtn:hover{border-color:rgba(239,68,68,.4);color:rgba(239,68,68,.7);background:rgba(239,68,68,.05)}
+          @keyframes screenIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+          @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        `}</style>
+        <div className="hw">
+          <div className="hin">
+            <button className="back2" onClick={() => setScreen("menu")}>
+              <ChevronLeft size={12}/> {lang === "ru" ? "В меню" : "Back to menu"}
+            </button>
+            <p className="fm" style={{fontSize:".58rem",letterSpacing:".35em",textTransform:"uppercase",opacity:.3,marginBottom:".4rem"}}>{lang === "ru" ? "ИСТОРИЯ" : "HISTORY"}</p>
+            <h1 className="fs" style={{fontSize:"clamp(2rem,6vw,3rem)",fontStyle:"italic",color:tx,marginBottom:"1.5rem"}}>{t.history}</h1>
+
+            {/* Stats bar */}
+            {localHistory.length > 0 && (
+              <div className="hsg" style={{marginBottom:"1.5rem"}}>
+                {([
+                  [localHistory.length, lang==="ru"?"Игр":"Games"],
+                  [wins, lang==="ru"?"Победы":"Wins"],
+                  [losses, lang==="ru"?"Пораж.":"Losses"],
+                  [`${wr}%`, lang==="ru"?"Винрейт":"Win rate"],
+                ] as [any,string][]).map(([v,l]) => (
+                  <div key={l} className="hsc">
+                    <div className="fs" style={{fontSize:"1.6rem",fontStyle:"italic",color:tx,lineHeight:1}}>{v}</div>
+                    <div className="fm" style={{fontSize:".5rem",letterSpacing:".14em",textTransform:"uppercase",opacity:.35,marginTop:".25rem"}}>{l}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Games list */}
+            {localHistory.length === 0 ? (
+              <div style={{textAlign:"center",padding:"3rem 1rem",opacity:.35}}>
+                <div style={{fontSize:"2rem",marginBottom:".75rem"}}>♟</div>
+                <p className="fb" style={{fontStyle:"italic",fontSize:"1rem"}}>{t.noGames}</p>
+              </div>
+            ) : (
+              <>
+                <div className="hlist" style={{marginBottom:"1rem",animation:"slideUp .3s ease"}}>
+                  {localHistory.map((g) => (
+                    <div key={g.id} className="hrow">
+                      <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,background:g.result==="win"?"#4ade80":g.result==="loss"?"#f87171":`${tx}30`}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div className="fm" style={{fontSize:".68rem",textTransform:"capitalize"}}>
+                          {g.result==="win"?t.winLabel:g.result==="loss"?t.lossLabel:t.drawLabel}
+                          {" · "}{g.mode==="pve"?t.vsAI:t.vsHuman}
+                          {g.difficulty && <span style={{opacity:.45}}> · {g.difficulty}</span>}
+                        </div>
+                        <div className="fm" style={{fontSize:".54rem",opacity:.32,marginTop:".2rem"}}>
+                          {g.moves} {t.movesLabel} · {fmtDur(g.duration)} · {g.reason}
+                        </div>
+                      </div>
+                      <div className="fm" style={{fontSize:".55rem",opacity:.28,flexShrink:0}}>{fmtDate(g.date)}</div>
+                    </div>
+                  ))}
+                </div>
+                <button className="clrbtn" onClick={() => { if (confirm(lang==="ru"?"Очистить всю историю?":"Clear all history?")) setLocalHistory([]) }}>
+                  {t.clearHistory}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </>
+    )
+  }
+
   // ── GAME ──
   return (
     <>
       <style>{BASE + `
-        .gw{min-height:100vh;background:${theme.boardColors.pageBg};padding:1.5rem 1rem;animation:fadeIn .3s ease}
+        .gw{min-height:100vh;background:${theme.boardColors.pageBg};padding:1.5rem 1rem;animation:screenIn .35s cubic-bezier(.4,0,.2,1)}
         .gl{display:flex;flex-direction:row;align-items:flex-start;gap:2rem;width:100%;max-width:980px;margin:0 auto}
         .bc{flex:0 0 auto;width:min(560px,calc(100vw - 360px));min-width:280px}
         .pc{flex:0 0 280px;width:280px;display:flex;flex-direction:column;gap:.65rem;padding-top:2.5rem}
@@ -716,30 +848,35 @@ export default function ChessPage() {
         .bw{position:relative;width:100%;padding-top:100%}
         .bgrid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);border:1px solid rgba(0,0,0,0.12);box-shadow:0 20px 60px -10px rgba(0,0,0,.3),0 4px 16px -4px rgba(0,0,0,.15);border-radius:2px;overflow:hidden;}
         .sq{position:relative;display:flex;align-items:center;justify-content:center;border:none;padding:0;cursor:pointer;width:100%;height:100%;transition:filter .1s}
-        .sq:active:not([disabled]){filter:brightness(.92)}
+        .sq:hover:not([disabled]){filter:brightness(1.06)}
+        .sq:active:not([disabled]){filter:brightness(.9)}
         .dot{position:absolute;width:26%;height:26%;border-radius:50%;background:${isDark ? "rgba(255,255,255,.3)" : "rgba(0,0,0,.24)"};pointer-events:none;z-index:3}
         .ring{position:absolute;inset:0;border:3px solid ${theme.boardColors.selected};pointer-events:none;z-index:3}
         .check-ring{position:absolute;inset:0;box-shadow:inset 0 0 0 3px rgba(239,68,68,.7);pointer-events:none;z-index:3;animation:checkPulse 1s ease infinite}
         @keyframes checkPulse{0%,100%{box-shadow:inset 0 0 0 3px rgba(239,68,68,.7)}50%{box-shadow:inset 0 0 0 3px rgba(239,68,68,1),0 0 12px rgba(239,68,68,.4)}}
         .coord{position:absolute;font-size:10px;font-family:'DM Mono',monospace;z-index:1;pointer-events:none;opacity:.58}
         .prow{display:flex;justify-content:space-between;align-items:center;padding:.4rem .1rem}
-        .card{background:${bg};border:1px solid ${br};border-radius:4px;overflow:hidden}
+        .card{background:${bg};border:1px solid ${br};border-radius:4px;overflow:hidden;transition:box-shadow .2s}
+        .card:hover{box-shadow:0 4px 16px -4px rgba(0,0,0,.1)}
         .chd{display:flex;justify-content:space-between;align-items:center;padding:.65rem .9rem;border-bottom:1px solid ${br}}
         .lbl{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;opacity:.38}
         .cscroll{padding:.65rem .9rem;max-height:100px;overflow-y:auto}
         .mwrap{padding:.5rem .9rem .65rem;max-height:70px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:.15rem .3rem}
         .arow{display:flex;gap:.4rem}
         .abtn2{flex:1;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;background:none;border:1px solid ${tx}1e;color:${tx};padding:.55rem .3rem;border-radius:3px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.25rem}
-        .abtn2:hover{border-color:${tx}48;background:${tx}06}
-        .abtn2:disabled{opacity:.2;cursor:default}
+        .abtn2:hover{border-color:${tx}55;background:${tx}08;box-shadow:0 2px 8px -2px rgba(0,0,0,.12);transform:translateY(-1px)}
+        .abtn2:active{transform:translateY(0);box-shadow:none}
+        .abtn2:disabled{opacity:.2;cursor:default;transform:none;box-shadow:none}
         .blay{position:fixed;inset:0;z-index:200;background:${isDark ? "rgba(0,0,0,.75)" : "rgba(26,25,22,.35)"};backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease}
         .rmod{background:${theme.boardColors.pageBg};border:1px solid ${br};padding:2.5rem 2rem;border-radius:6px;text-align:center;width:290px;max-width:90vw;animation:slideUp .3s ease}
         .pbtn{width:100%;font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;background:none;border:1px solid ${tx}22;color:${tx};padding:.78rem;border-radius:3px;cursor:pointer;transition:all .2s;margin-bottom:.4rem}
-        .pbtn:hover{border-color:${tx}52;background:${tx}06}
+        .pbtn:hover{border-color:${tx}55;background:${tx}07;box-shadow:0 2px 10px -3px rgba(0,0,0,.15);transform:translateY(-1px)}
+        .pbtn:active{transform:translateY(0);box-shadow:none}
         .timer-warn{animation:timerWarn .5s ease infinite}
         @keyframes timerWarn{0%,100%{opacity:1}50%{opacity:.5}}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes screenIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
       `}</style>
       <div className="gw">
         <div className="gl">
